@@ -816,8 +816,29 @@ function BudgetStep({ budget, area, survey, address, onFindRoofers }) {
   );
 }
 
+/* ═══════════════════════════ PRIORITY ROOFERS (Toronto 150km) ═══════════════════════════ */
+const TORONTO = { lat: 43.6532, lng: -79.3832 };
+const PRIORITY_RADIUS_KM = 150;
+
+const PRIORITY_ROOFERS = [
+  { name: "Flynn Canada", address: "Mississauga, ON", phone: "(905) 564-8255", website: "https://flynncompanies.com", rating: 4.2, reviews: 45, mapsUrl: "https://maps.google.com/?q=Flynn+Canada+Mississauga", featured: true },
+  { name: "Masi Group", address: "Vaughan, ON", phone: "(905) 660-5433", website: "https://masigroup.ca", rating: 4.5, reviews: 32, mapsUrl: "https://maps.google.com/?q=Masi+Group+Vaughan+ON", featured: true },
+  { name: "Solid Seal Group Inc", address: "Toronto, ON", phone: "(416) 291-0707", website: "https://solidsealgroup.com", rating: 4.6, reviews: 28, mapsUrl: "https://maps.google.com/?q=Solid+Seal+Group+Toronto", featured: true },
+  { name: "Bothwell-Accurate", address: "Toronto, ON", phone: "(416) 701-0074", website: "https://bothwellaccurate.com", rating: 4.4, reviews: 38, mapsUrl: "https://maps.google.com/?q=Bothwell+Accurate+Toronto", featured: true },
+  { name: "Semple-Gooder", address: "Mississauga, ON", phone: "(905) 564-0726", website: "https://semplegooder.com", rating: 4.3, reviews: 22, mapsUrl: "https://maps.google.com/?q=Semple+Gooder+Mississauga", featured: true },
+  { name: "Specified Roofing", address: "Concord, ON", phone: "(905) 669-8177", website: "https://specifiedroofing.com", rating: 4.5, reviews: 18, mapsUrl: "https://maps.google.com/?q=Specified+Roofing+Concord+ON", featured: true },
+  { name: "Old South Roofing", address: "London, ON", phone: "(519) 649-5559", website: "https://oldsouthroofing.ca", rating: 4.7, reviews: 52, mapsUrl: "https://maps.google.com/?q=Old+South+Roofing+London+ON", featured: true },
+];
+
+function distKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, toR = d => d * Math.PI / 180;
+  const dLat = toR(lat2 - lat1), dLng = toR(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 /* ═══════════════════════════ STEP 6 — ROOFERS (Google Places + Email) ═══════════════════════════ */
-function RooferStep({ address, budget, customer, survey, area }) {
+function RooferStep({ address, coords, budget, customer, survey, area }) {
   const [roofers, setRoofers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -843,25 +864,37 @@ function RooferStep({ address, budget, customer, survey, area }) {
         });
       });
 
+      let googleRoofers = [];
       if (results.length > 0) {
-        const detailed = await Promise.all(
+        googleRoofers = await Promise.all(
           results.slice(0, 20).map(place => new Promise(resolve => {
             service.getDetails(
               { placeId: place.place_id, fields: ["name","formatted_address","formatted_phone_number","website","rating","user_ratings_total","url"] },
               (d, s) => {
                 if (s === window.google.maps.places.PlacesServiceStatus.OK && d) {
-                  resolve({ name:d.name||place.name, address:d.formatted_address||"", phone:d.formatted_phone_number||"", website:d.website||"", rating:d.rating||null, reviews:d.user_ratings_total||0, mapsUrl:d.url||"" });
+                  resolve({ name:d.name||place.name, address:d.formatted_address||"", phone:d.formatted_phone_number||"", website:d.website||"", rating:d.rating||null, reviews:d.user_ratings_total||0, mapsUrl:d.url||"", featured:false });
                 } else {
-                  resolve({ name:place.name, address:place.formatted_address||"", phone:"", website:"", rating:place.rating||null, reviews:place.user_ratings_total||0, mapsUrl:"" });
+                  resolve({ name:place.name, address:place.formatted_address||"", phone:"", website:"", rating:place.rating||null, reviews:place.user_ratings_total||0, mapsUrl:"", featured:false });
                 }
               }
             );
           }))
         );
-        setRoofers(detailed);
-      } else {
-        setRoofers([]);
       }
+
+      // Check if within 150km of Toronto — if so, prepend priority roofers
+      let finalList = [];
+      const isNearToronto = coords && distKm(coords.lat, coords.lng, TORONTO.lat, TORONTO.lng) <= PRIORITY_RADIUS_KM;
+
+      if (isNearToronto) {
+        const priorityNames = new Set(PRIORITY_ROOFERS.map(r => r.name.toLowerCase()));
+        const filtered = googleRoofers.filter(r => !priorityNames.has(r.name.toLowerCase()));
+        finalList = [...PRIORITY_ROOFERS, ...filtered];
+      } else {
+        finalList = googleRoofers;
+      }
+
+      setRoofers(finalList.slice(0, 20));
     } catch (e) {
       console.error("Places error:", e);
       setErr("Couldn't search automatically. Make sure Maps JavaScript API and Places API are enabled.");
@@ -965,13 +998,18 @@ function RooferStep({ address, budget, customer, survey, area }) {
 
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {roofers.map((r,i) => (
-              <div key={i} style={{background:T.white,borderRadius:14,padding:"16px 20px",border:`1.5px solid ${sent[i]==="sent"?T.green:sent[i]==="error"?T.red:T.border}`,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",transition:"border-color .2s"}}>
+              <div key={i} style={{background:r.featured?"#f8faff":T.white,borderRadius:14,padding:"16px 20px",border:`1.5px solid ${sent[i]==="sent"?T.green:sent[i]==="error"?T.red:r.featured?T.accent:T.border}`,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",transition:"border-color .2s"}}>
                 <div style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:T.surface2,fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,color:T.accent,fontSize:14,flexShrink:0}}>
                   {i+1}
                 </div>
                 <div style={{flex:1,minWidth:200}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                     <span style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:700,color:T.text,fontSize:15}}>{r.name}</span>
+                    {r.featured && (
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.accent,background:T.accentLt,padding:"2px 10px",borderRadius:100,fontWeight:700,letterSpacing:".3px",textTransform:"uppercase"}}>
+                        Featured
+                      </span>
+                    )}
                     {r.rating && (
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#92400e",background:"#fef3c7",padding:"2px 8px",borderRadius:100,fontWeight:600}}>
                         ★ {r.rating}{r.reviews ? ` (${r.reviews})` : ""}
@@ -1072,7 +1110,7 @@ function RoofRFQ() {
         {step===3 && <SurveyStep data={survey} setData={setSurvey} onNext={finishSurvey}/>}
         {step===4 && <ContactStep data={customer} setData={setCustomer} onNext={showBudget}/>}
         {step===5 && budget && <BudgetStep budget={budget} area={area} survey={survey} address={address} onFindRoofers={()=>setStep(6)}/>}
-        {step===6 && <RooferStep address={address} budget={budget} customer={customer} survey={survey} area={area}/>}
+        {step===6 && <RooferStep address={address} coords={coords} budget={budget} customer={customer} survey={survey} area={area}/>}
       </div>
 
       <div style={{textAlign:"center",padding:"20px 24px",borderTop:`1px solid ${T.border}`,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.textLt}}>

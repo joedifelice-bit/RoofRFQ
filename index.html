@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RoofRFQ — Flat Roof Replacement Made Simple</title>
+  <meta name="description" content="Get an instant budget estimate for your commercial flat roof replacement and connect with top roofers in your area." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='40' height='40' rx='10' fill='%231e3a5f'/%3E%3Cpath d='M8 28L20 13L32 28' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
+  <style>html,body,#root{margin:0;padding:0;min-height:100vh}</style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module">
+const { useState, useEffect, useRef } = React;
+
+
+/* ═══════════════════════════ DATA ═══════════════════════════ */
+const PRICING = {
+  TPO:               { low: 7.5,  high: 13.0, label: "TPO Single-Ply" },
+  PVC:               { low: 8.0,  high: 14.0, label: "PVC Membrane" },
+  EPDM:              { low: 6.0,  high: 11.0, label: "EPDM Rubber" },
+  "Modified Bitumen": { low: 6.5, high: 12.0, label: "Modified Bitumen (Mod-Bit)" },
+  BUR:               { low: 7.0,  high: 13.0, label: "Built-Up (BUR / Tar & Gravel)" },
+  Metal:             { low: 10.0, high: 18.0, label: "Standing Seam Metal" },
+  "Spray Foam":      { low: 5.0,  high: 9.5,  label: "Spray Polyurethane Foam (SPF)" },
+  Unknown:           { low: 7.0,  high: 13.0, label: "Not Sure / Other" },
+};
+const ROOF_TYPES = Object.keys(PRICING);
+const AGE_OPTS = ["Less than 5 years","5 – 10 years","10 – 15 years","15 – 20 years","20 – 25 years","25+ years","Not sure"];
+const COND_OPTS = [
+  { v:"excellent", l:"Excellent", d:"No visible wear or defects" },
+  { v:"good",      l:"Good",      d:"Minor surface wear, performing well" },
+  { v:"fair",      l:"Fair",      d:"Visible wear, isolated problem areas" },
+  { v:"poor",      l:"Poor",      d:"Widespread damage or deterioration" },
+  { v:"critical",  l:"Critical",  d:"Active leaks, ponding, or membrane failure" },
+];
+const EQUIP_OPTS = ["HVAC Units","Skylights","Solar Panels","Exhaust Fans","Satellite / Antennas","Pipe Penetrations","Roof Hatch","None / Minimal"];
+
+/* ── GOOGLE MAPS API KEY (enable: Maps JavaScript API, Maps Static API, Places API) ── */
+const GMAPS_KEY = "AIzaSyCPzBIONXfGflDJQMbC2tg_mGanLHIDmAU";
+
+/* Load Google Maps JS API (works with HTTP referrer restrictions) */
+let _gmapsPromise = null;
+function loadGmaps() {
+  if (_gmapsPromise) return _gmapsPromise;
+  _gmapsPromise = new Promise((resolve, reject) => {
+    if (window.google?.maps?.Geocoder) return resolve();
+    const s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&libraries=places,geometry`;
+    s.async = true;
+    s.onload = () => {
+      const wait = setInterval(() => {
+        if (window.google?.maps?.Geocoder) { clearInterval(wait); resolve(); }
+      }, 50);
+      setTimeout(() => { clearInterval(wait); reject(new Error("Google Maps load timeout")); }, 12000);
+    };
+    s.onerror = () => reject(new Error("Failed to load Google Maps JS"));
+    document.head.appendChild(s);
+  });
+  return _gmapsPromise;
+}
+
+const FONTS       = "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap";
+
+/* ═══════════════════════════ HELPERS ═══════════════════════════ */
+const fmt  = n => new Intl.NumberFormat("en-US").format(Math.round(n));
+const fmtC = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
+
+function calcBudget(sqft, type, condIdx, stories, leaks, equipN) {
+  const b = PRICING[type] || PRICING.Unknown;
+  let lo = 1, hi = 1;
+  if (condIdx >= 3) { lo += .12; hi += .15; } else if (condIdx >= 2) { lo += .05; hi += .08; }
+  const s = parseInt(stories) || 1;
+  if (s > 1) { lo += (s-1)*.05; hi += (s-1)*.07; }
+  if (leaks) { lo += .05; hi += .07; }
+  if (equipN > 3) { lo += .05; hi += .06; } else if (equipN > 0) { lo += .02; hi += .03; }
+  return { low: Math.round(sqft*b.low*lo), high: Math.round(sqft*b.high*hi), sqLo: +(b.low*lo).toFixed(2), sqHi: +(b.high*hi).toFixed(2) };
+}
+
+/* Mercator projection helpers for Static Maps canvas overlay */
+const TILE = 256;
+function latLngToWorld(lat, lng) {
+  const siny = Math.min(Math.max(Math.sin(lat * Math.PI / 180), -0.9999), 0.9999);
+  return { x: TILE * (0.5 + lng / 360), y: TILE * (0.5 - Math.log((1 + siny) / (1 - siny)) / (4 * Math.PI)) };
+}
+function worldToLatLng(wx, wy) {
+  const lng = (wx / TILE - 0.5) * 360;
+  const lat = (2 * Math.atan(Math.exp((0.5 - wy / TILE) * 2 * Math.PI)) - Math.PI / 2) * 180 / Math.PI;
+  return { lat, lng };
+}
+function pixToLatLng(px, py, center, zoom, w, h) {
+  const scale = Math.pow(2, zoom);
+  const cw = latLngToWorld(center.lat, center.lng);
+  return worldToLatLng((cw.x * scale + (px - w / 2)) / scale, (cw.y * scale + (py - h / 2)) / scale);
+}
+function latLngToPix(lat, lng, center, zoom, w, h) {
+  const scale = Math.pow(2, zoom);
+  const cw = latLngToWorld(center.lat, center.lng);
+  const pw = latLngToWorld(lat, lng);
+  return { x: (pw.x - cw.x) * scale + w / 2, y: (pw.y - cw.y) * scale + h / 2 };
+}
+function geodesicAreaSqft(pts) {
+  if (pts.length < 3) return 0;
+  const toRad = d => d * Math.PI / 180, R = 6371000;
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    a += toRad(pts[j].lng - pts[i].lng) * (2 + Math.sin(toRad(pts[i].lat)) + Math.sin(toRad(pts[j].lat)));
+  }
+  return Math.abs(a * R * R / 2) * 10.7639;
+}
+function staticMapUrl(lat, lng, zoom, w, h) {
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${w}x${h}&scale=2&maptype=satellite&key=${GMAPS_KEY}`;
+}
+
+
+/* ═══════════════════════════ THEME ═══════════════════════════ */
+const T = {
+  bg:       "#fafaf9",
+  surface:  "#ffffff",
+  surface2: "#f5f5f4",
+  border:   "#e7e5e4",
+  borderDk: "#d6d3d1",
+  accent:   "#1e3a5f",
+  accent2:  "#2563eb",
+  accentLt: "#dbeafe",
+  gold:     "#ca8a04",
+  goldLt:   "#fef9c3",
+  text:     "#1c1917",
+  textMd:   "#57534e",
+  textLt:   "#a8a29e",
+  white:    "#ffffff",
+  green:    "#16a34a",
+  greenLt:  "#dcfce7",
+  red:      "#dc2626",
+  redLt:    "#fef2f2",
+};
+
+const CSS = `
+@import url('${FONTS}');
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:${T.bg}} ::-webkit-scrollbar-thumb{background:${T.borderDk};border-radius:3px}
+.rfq-btn{
+  background:${T.accent};color:${T.white};font-weight:600;border:none;border-radius:12px;
+  padding:14px 32px;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .2s;letter-spacing:.2px;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.rfq-btn:hover{background:#162d4a;transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,58,95,.25)}
+.rfq-btn:active{transform:translateY(0)}
+.rfq-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+.rfq-btn-gold{background:linear-gradient(135deg,#ca8a04,#a16207);color:#fff}
+.rfq-btn-gold:hover{box-shadow:0 6px 20px rgba(202,138,4,.3);background:linear-gradient(135deg,#b47d04,#8b5506)}
+.rfq-btn-out{
+  background:transparent;color:${T.accent};font-weight:600;border:1.5px solid ${T.accent};
+  border-radius:12px;padding:12px 24px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;
+}
+.rfq-btn-out:hover{background:${T.accentLt}}
+.rfq-input{
+  width:100%;background:${T.white};border:1.5px solid ${T.border};border-radius:12px;
+  padding:14px 16px;color:${T.text};font-size:15px;font-family:'DM Sans',sans-serif;
+  transition:border-color .2s;outline:none;
+}
+.rfq-input:focus{border-color:${T.accent2};box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.rfq-input::placeholder{color:${T.textLt}}
+.rfq-select{
+  width:100%;background:${T.white};border:1.5px solid ${T.border};border-radius:12px;
+  padding:14px 16px;color:${T.text};font-size:15px;font-family:'DM Sans',sans-serif;
+  outline:none;appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2378716c' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+}
+.rfq-select:focus{border-color:${T.accent2};box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.rfq-label{color:${T.textMd};font-size:13px;font-weight:600;margin-bottom:7px;display:block;letter-spacing:.3px}
+.chip{
+  display:inline-flex;align-items:center;padding:9px 18px;border-radius:100px;
+  border:1.5px solid ${T.border};color:${T.textMd};font-size:13px;font-weight:500;cursor:pointer;
+  transition:all .15s;font-family:'DM Sans',sans-serif;background:${T.white};
+}
+.chip.on{border-color:${T.accent};color:${T.accent};background:${T.accentLt};font-weight:600}
+.chip:hover{border-color:${T.borderDk}}
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.up{animation:up .45s ease forwards}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+`;
+
+
+/* ═══════════════════════════ TINY COMPONENTS ═══════════════════════════ */
+function Badge({ children, color = T.accent, bg = T.accentLt }) {
+  return <span style={{ display:"inline-flex",alignItems:"center",gap:4,padding:"4px 12px",borderRadius:100,fontSize:11,fontWeight:700,color,background:bg,fontFamily:"'DM Sans',sans-serif",letterSpacing:".3px",textTransform:"uppercase" }}>{children}</span>;
+}
+
+function StepNav({ current, labels }) {
+  return (
+    <div style={{display:"flex",gap:3,padding:"0 4px"}}>
+      {labels.map((l,i) => (
+        <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+          <div style={{height:3,width:"100%",borderRadius:2,transition:"all .4s",background:i<=current?T.accent:T.border}}/>
+          <span style={{fontSize:10,fontWeight:600,letterSpacing:.4,textTransform:"uppercase",color:i<=current?T.accent:T.textLt,transition:"color .3s",fontFamily:"'DM Sans',sans-serif"}}>{l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Card({ children, style, highlight }) {
+  return <div style={{ background:T.white,borderRadius:16,border:`1.5px solid ${highlight?T.accent:T.border}`,padding:24,transition:"border-color .2s",...style }}>{children}</div>;
+}
+
+/* ═══════════════════════════ LOGO ═══════════════════════════ */
+function Logo({ size = 32 }) {
+  const s = size;
+  return (
+    <div style={{ display:"inline-flex",alignItems:"center",gap:s*.28 }}>
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="10" fill={T.accent}/>
+        <path d="M8 28L20 13L32 28" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <path d="M14 28L20 19L26 28" stroke="rgba(255,255,255,.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <line x1="20" y1="28" x2="20" y2="22" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+      <span style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:s*.68,fontWeight:800,color:T.text,letterSpacing:"-0.5px"}}>
+        Roof<span style={{color:T.accent}}>RFQ</span>
+      </span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 0 — LANDING ═══════════════════════════ */
+function Landing({ onStart }) {
+  return (
+    <div className="up" style={{textAlign:"center",padding:"60px 24px 40px",maxWidth:680,margin:"0 auto"}}>
+      <Logo size={40}/>
+
+      <h1 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:46,fontWeight:800,color:T.text,lineHeight:1.12,margin:"32px 0 16px",letterSpacing:"-1.5px"}}>
+        Flat Roof Replacement<br/>
+        <span style={{color:T.accent}}>Made Simple</span>
+      </h1>
+
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:17,color:T.textMd,lineHeight:1.7,maxWidth:500,margin:"0 auto 40px"}}>
+        Measure your roof from satellite imagery, get an instant budget range,
+        and connect with top commercial roofing contractors near you — all in under five minutes.
+      </p>
+
+      <div style={{display:"flex",justifyContent:"center",gap:40,marginBottom:48,flexWrap:"wrap"}}>
+        {[
+          {n:"01",t:"Measure",d:"Trace your roof on the satellite map"},
+          {n:"02",t:"Estimate",d:"Instant budget based on industry pricing"},
+          {n:"03",t:"Connect",d:"Top commercial roofers in your area"},
+        ].map((x,i) => (
+          <div key={i} style={{textAlign:"left",maxWidth:165}}>
+            <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:28,fontWeight:800,color:T.accent,opacity:.25,marginBottom:4}}>{x.n}</div>
+            <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:700,color:T.text,fontSize:16,marginBottom:4}}>{x.t}</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:13,lineHeight:1.5}}>{x.d}</div>
+          </div>
+        ))}
+      </div>
+
+      <button className="rfq-btn" style={{fontSize:16,padding:"16px 44px",borderRadius:14}} onClick={onStart}>
+        Get Started — It's Free
+      </button>
+
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textLt,marginTop:16}}>
+        Commercial · Industrial · Institutional — No obligation, no credit card
+      </p>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 1 — ADDRESS ═══════════════════════════ */
+function AddressStep({ onSelect }) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [picked, setPicked] = useState(null);
+  const wrap = useRef(null);
+
+  useEffect(() => {
+    const h = e => { if (wrap.current && !wrap.current.contains(e.target)) setResults([]); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const doSearch = async () => {
+    if (!q.trim() || q.trim().length < 3) return;
+    setLoading(true); setError(null); setResults([]); setPicked(null);
+    try {
+      await loadGmaps();
+      const geocoder = new window.google.maps.Geocoder();
+      const response = await geocoder.geocode({ address: q });
+      if (response.results && response.results.length > 0) {
+        const parsed = response.results.slice(0, 5).map(res => {
+          const loc = res.geometry.location;
+          const parts = res.address_components || [];
+          const city = (parts.find(p => p.types.includes("locality")) || parts.find(p => p.types.includes("sublocality")) || {}).long_name || "";
+          const region = (parts.find(p => p.types.includes("administrative_area_level_1")) || {}).short_name || "";
+          return { label: res.formatted_address, city, region, lat: loc.lat(), lng: loc.lng() };
+        });
+        setResults(parsed);
+      } else {
+        setError("No results found. Try a more specific address.");
+      }
+    } catch (e) {
+      if (e?.code === "ZERO_RESULTS") {
+        setError("No results found. Try a more specific address.");
+      } else {
+        console.error("Geocode error:", e);
+        setError("Search failed. Please check your connection and that the Maps JavaScript API is enabled.");
+      }
+    }
+    setLoading(false);
+  };
+
+  const pick = s => { setPicked(s); setResults([]); setQ(s.label); };
+
+  return (
+    <div className="up" style={{maxWidth:540,margin:"0 auto",padding:"36px 24px"}}>
+      <Badge>Step 1 of 5</Badge>
+      <h2 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:30,fontWeight:800,color:T.text,margin:"14px 0 6px",letterSpacing:"-.5px"}}>
+        Find your building
+      </h2>
+      <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:15,marginBottom:28,lineHeight:1.6}}>
+        Enter your property address and hit search. We'll locate it on the satellite map so you can trace your roof.
+      </p>
+
+      <label className="rfq-label">Property Address</label>
+      <div ref={wrap} style={{position:"relative",marginBottom:16}}>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{position:"relative",flex:1}}>
+            <input className="rfq-input" placeholder="e.g. 100 King Street West, Toronto, ON"
+              value={q}
+              onChange={e => { setQ(e.target.value); setPicked(null); }}
+              onKeyDown={e => { if (e.key === "Enter" && q.trim().length >= 3) doSearch(); }}
+              style={{paddingLeft:42,borderColor:picked?T.green:undefined}}
+            />
+            <svg style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)"}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textLt} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            {picked && <svg style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)"}} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.green} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+          </div>
+          <button className="rfq-btn" style={{padding:"14px 20px",flexShrink:0,borderRadius:12}} disabled={loading || q.trim().length < 3} onClick={doSearch}>
+            {loading ? (
+              <div className="spin" style={{width:18,height:18,borderRadius:"50%",border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff"}}/>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            )}
+          </button>
+        </div>
+
+        {/* Results dropdown */}
+        {results.length > 0 && !picked && (
+          <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,right:0,zIndex:50,background:T.white,border:`1.5px solid ${T.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 12px 40px rgba(0,0,0,.12)"}}>
+            <div style={{padding:"10px 16px 6px",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.textLt,fontWeight:600,textTransform:"uppercase",letterSpacing:".5px"}}>
+              {results.length} result{results.length!==1?"s":""} found — select your building
+            </div>
+            {results.map((s,i) => (
+              <div key={i} onClick={() => pick(s)}
+                style={{padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"flex-start",gap:10,borderTop:`1px solid ${T.surface2}`,transition:"background .1s"}}
+                onMouseEnter={e => e.currentTarget.style.background=T.surface2}
+                onMouseLeave={e => e.currentTarget.style.background="transparent"}
+              >
+                <svg style={{marginTop:2,flexShrink:0}} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:T.text,fontWeight:500}}>{s.label}</div>
+                  {s.city && <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.textLt,marginTop:1}}>{[s.city,s.region].filter(Boolean).join(", ")}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {loading && (
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.textMd}}>
+          <div className="spin" style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${T.accent}`,borderTopColor:"transparent",flexShrink:0}}/>
+          Locating your building…
+        </div>
+      )}
+
+      {error && (
+        <div style={{display:"flex",alignItems:"flex-start",gap:8,padding:14,background:T.redLt,borderRadius:12,marginBottom:8}}>
+          <svg style={{flexShrink:0,marginTop:1}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.red}}>{error}</span>
+        </div>
+      )}
+
+      {picked && (
+        <div className="up" style={{display:"flex",alignItems:"center",gap:10,padding:14,background:T.greenLt,borderRadius:12,marginBottom:8}}>
+          <svg style={{flexShrink:0}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.green} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#166534",fontWeight:500}}>Address confirmed — ready to view satellite imagery</span>
+        </div>
+      )}
+
+      <button className="rfq-btn" style={{width:"100%",marginTop:4}} disabled={!picked} onClick={() => onSelect(picked.label,{lat:picked.lat,lng:picked.lng})}>
+        Continue to Satellite View
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      {!picked && !loading && !error && (
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textLt,marginTop:12,textAlign:"center"}}>
+          Include city and state/province for best results
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 2 — MAP (Static Image + Canvas) ═══════════════════════════ */
+const MAP_W = 640, MAP_H = 460;
+
+function MapStep({ coords, onConfirm }) {
+  const canvasRef = useRef(null);
+  const [zoom, setZoom] = useState(19);
+  const [center, setCenter] = useState({ lat: coords.lat, lng: coords.lng });
+  const [pts, setPts] = useState([]);  // array of {lat, lng}
+  const [area, setArea] = useState(0);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(null);
+  const dragCenter = useRef(null);
+
+  const imgUrl = staticMapUrl(center.lat, center.lng, zoom, MAP_W, MAP_H);
+
+  // Redraw canvas overlay whenever pts, center, or zoom change
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = 2; // scale=2
+    canvas.width = MAP_W * dpr;
+    canvas.height = MAP_H * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, MAP_W, MAP_H);
+
+    if (pts.length === 0) return;
+
+    // Convert lat/lng points to pixel positions
+    const pxPts = pts.map(p => latLngToPix(p.lat, p.lng, center, zoom, MAP_W, MAP_H));
+
+    // Draw filled polygon
+    if (pxPts.length >= 3) {
+      ctx.beginPath();
+      pxPts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+      ctx.fillStyle = "rgba(37, 99, 235, 0.2)";
+      ctx.fill();
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (pxPts.length === 2) {
+      ctx.beginPath();
+      ctx.moveTo(pxPts[0].x, pxPts[0].y);
+      ctx.lineTo(pxPts[1].x, pxPts[1].y);
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Draw vertex dots
+    pxPts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "#2563eb";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }, [pts, center, zoom]);
+
+  const handleCanvasClick = (e) => {
+    if (dragging) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (MAP_W / rect.width);
+    const y = (e.clientY - rect.top) * (MAP_H / rect.height);
+    const ll = pixToLatLng(x, y, center, zoom, MAP_W, MAP_H);
+    const newPts = [...pts, ll];
+    setPts(newPts);
+    setArea(geodesicAreaSqft(newPts));
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.button === 2 || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      dragStart.current = { x: e.clientX, y: e.clientY };
+      dragCenter.current = { ...center };
+      setDragging(true);
+    }
+  };
+  const handleMouseMove = (e) => {
+    if (!dragStart.current || !dragCenter.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    const scale = Math.pow(2, zoom);
+    const cw = latLngToWorld(dragCenter.current.lat, dragCenter.current.lng);
+    const newC = worldToLatLng(cw.x - dx / scale, cw.y - dy / scale);
+    setCenter(newC);
+  };
+  const handleMouseUp = () => {
+    dragStart.current = null;
+    dragCenter.current = null;
+    setTimeout(() => setDragging(false), 50);
+  };
+
+  const undo = () => {
+    const newPts = pts.slice(0, -1);
+    setPts(newPts);
+    setArea(geodesicAreaSqft(newPts));
+  };
+  const clear = () => { setPts([]); setArea(0); };
+  const zoomIn = () => setZoom(z => Math.min(z + 1, 21));
+  const zoomOut = () => setZoom(z => Math.max(z - 1, 16));
+  const recenter = () => { setCenter({ lat: coords.lat, lng: coords.lng }); setZoom(19); };
+
+  return (
+    <div className="up" style={{maxWidth:880,margin:"0 auto",padding:"24px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:12}}>
+        <div>
+          <Badge>Step 2 of 5</Badge>
+          <h2 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:26,fontWeight:800,color:T.text,marginTop:10,letterSpacing:"-.5px"}}>
+            Outline your roof
+          </h2>
+          <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:14,marginTop:4}}>
+            Click on the satellite image to place points around your flat roof. We'll calculate the area automatically.
+          </p>
+        </div>
+        <Card style={{padding:"12px 24px",textAlign:"center",minWidth:155}} highlight={area>0}>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:T.textLt,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Roof Area</div>
+          <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:28,fontWeight:800,color:area>0?T.accent:T.textLt}}>
+            {area>0?fmt(area):"—"} <span style={{fontSize:13,fontWeight:500}}>sq ft</span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Map container */}
+      <div style={{position:"relative",borderRadius:16,overflow:"hidden",border:`1.5px solid ${T.border}`,marginBottom:12,background:"#1a1a2e",userSelect:"none"}}>
+        {/* Static satellite image */}
+        <img
+          src={imgUrl}
+          alt="Satellite view"
+          style={{display:"block",width:"100%",height:"auto",minHeight:MAP_H}}
+          onLoad={() => { setImgLoaded(true); setImgError(false); }}
+          onError={() => { setImgError(true); setImgLoaded(false); }}
+          draggable={false}
+        />
+        {/* Canvas overlay for drawing */}
+        <canvas
+          ref={canvasRef}
+          style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",cursor:dragging?"grabbing":"crosshair"}}
+          onClick={handleCanvasClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onContextMenu={e => e.preventDefault()}
+        />
+
+        {/* Zoom controls */}
+        <div style={{position:"absolute",top:12,right:12,display:"flex",flexDirection:"column",gap:4}}>
+          {[{label:"+",fn:zoomIn},{label:"−",fn:zoomOut}].map(b => (
+            <button key={b.label} onClick={b.fn}
+              style={{width:36,height:36,borderRadius:10,border:"none",background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)",color:"#fff",fontSize:20,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",transition:"background .15s"}}
+              onMouseEnter={e => e.currentTarget.style.background="rgba(0,0,0,.85)"}
+              onMouseLeave={e => e.currentTarget.style.background="rgba(0,0,0,.7)"}
+            >{b.label}</button>
+          ))}
+          <button onClick={recenter}
+            style={{width:36,height:36,borderRadius:10,border:"none",background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .15s",marginTop:4}}
+            onMouseEnter={e => e.currentTarget.style.background="rgba(0,0,0,.85)"}
+            onMouseLeave={e => e.currentTarget.style.background="rgba(0,0,0,.7)"}
+            title="Recenter"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
+          </button>
+        </div>
+
+        {/* Hint overlay */}
+        {imgLoaded && pts.length === 0 && (
+          <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)",borderRadius:10,padding:"10px 20px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#fff",fontWeight:500,pointerEvents:"none",whiteSpace:"nowrap"}}>
+            Click on the map to start tracing your roof
+          </div>
+        )}
+
+        {/* Pan hint */}
+        {imgLoaded && pts.length > 0 && pts.length < 3 && (
+          <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)",borderRadius:10,padding:"8px 16px",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"rgba(255,255,255,.8)",fontWeight:400,pointerEvents:"none",whiteSpace:"nowrap"}}>
+            Place at least 3 points · Right-click + drag to pan
+          </div>
+        )}
+
+        {/* Loading / error */}
+        {!imgLoaded && !imgError && (
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <div className="spin" style={{width:24,height:24,borderRadius:"50%",border:"3px solid rgba(255,255,255,.3)",borderTopColor:"#fff",marginRight:10}}/>
+            <span style={{fontFamily:"'DM Sans',sans-serif",color:"rgba(255,255,255,.7)",fontSize:14}}>Loading satellite imagery…</span>
+          </div>
+        )}
+        {imgError && (
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.8)"}}>
+            <div style={{textAlign:"center",padding:24,maxWidth:400}}>
+              <svg style={{margin:"0 auto 12px"}} width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.red} strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:"rgba(255,255,255,.8)",lineHeight:1.6}}>
+                Satellite image couldn't load. Make sure the <strong>Maps Static API</strong> is enabled in your Google Cloud Console for your API key.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+        <button className="rfq-btn-out" onClick={undo} disabled={pts.length===0} style={{opacity:pts.length===0?.35:1,fontSize:13,padding:"10px 18px"}}>↩ Undo</button>
+        <button className="rfq-btn-out" onClick={clear} disabled={pts.length===0} style={{opacity:pts.length===0?.35:1,fontSize:13,padding:"10px 18px",borderColor:pts.length>0?T.red:T.border,color:pts.length>0?T.red:T.textLt}}>✕ Clear All</button>
+        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textLt,marginLeft:4}}>{pts.length} point{pts.length!==1?"s":""} · Zoom {zoom}</span>
+        <div style={{flex:1}}/>
+        <button className="rfq-btn" disabled={pts.length<3} onClick={() => onConfirm(area)}>
+          Confirm Area
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginTop:12,padding:"0 4px"}}>
+        <svg style={{marginTop:1,flexShrink:0}} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textMd,lineHeight:1.5}}>
+          Don't worry about being pixel-perfect — this is for a budget estimate. Contractors will take precise measurements during their site visit.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 3 — SURVEY ═══════════════════════════ */
+function SurveyStep({ data, setData, onNext }) {
+  const u = (k,v) => setData(p => ({...p,[k]:v}));
+  const togEquip = item => {
+    const list = data.equipment || [];
+    if (item === "None / Minimal") return u("equipment",["None / Minimal"]);
+    const f = list.filter(x => x !== "None / Minimal");
+    u("equipment", f.includes(item) ? f.filter(x=>x!==item) : [...f,item]);
+  };
+  const ok = data.roofType && data.age && data.condition && data.stories;
+
+  return (
+    <div className="up" style={{maxWidth:600,margin:"0 auto",padding:"32px 24px"}}>
+      <Badge>Step 3 of 5</Badge>
+      <h2 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:28,fontWeight:800,color:T.text,margin:"14px 0 6px",letterSpacing:"-.5px"}}>
+        Roof details
+      </h2>
+      <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:15,marginBottom:28,lineHeight:1.6}}>
+        These details help us fine-tune your budget estimate. If you're not sure about something, your best guess works.
+      </p>
+
+      <div style={{display:"flex",flexDirection:"column",gap:22}}>
+        <div>
+          <label className="rfq-label">What type of roof do you currently have?</label>
+          <select className="rfq-select" value={data.roofType||""} onChange={e=>u("roofType",e.target.value)}>
+            <option value="" disabled>Choose a roof system…</option>
+            {ROOF_TYPES.map(t => <option key={t} value={t}>{PRICING[t].label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="rfq-label">How old is the existing roof?</label>
+          <select className="rfq-select" value={data.age||""} onChange={e=>u("age",e.target.value)}>
+            <option value="" disabled>Select age…</option>
+            {AGE_OPTS.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="rfq-label">How would you rate its current condition?</label>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {COND_OPTS.map(c => (
+              <div key={c.v} onClick={()=>u("condition",c.v)}
+                style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderRadius:12,border:`1.5px solid ${data.condition===c.v?T.accent:T.border}`,background:data.condition===c.v?T.accentLt:T.white,cursor:"pointer",transition:"all .15s"}}
+              >
+                <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${data.condition===c.v?T.accent:T.borderDk}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {data.condition===c.v && <div style={{width:10,height:10,borderRadius:"50%",background:T.accent}}/>}
+                </div>
+                <div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:600,color:T.text}}>{c.l}</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textMd}}>{c.d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:180}}>
+            <label className="rfq-label">Building height</label>
+            <select className="rfq-select" value={data.stories||""} onChange={e=>u("stories",e.target.value)}>
+              <option value="" disabled>Stories…</option>
+              {["1","2","3","4","5+"].map(s => <option key={s} value={s}>{s} {s==="1"?"storey":"storeys"}</option>)}
+            </select>
+          </div>
+          <div style={{flex:1,minWidth:180}}>
+            <label className="rfq-label">Any known leaks?</label>
+            <div style={{display:"flex",gap:8,marginTop:2}}>
+              {["Yes","No","Not sure"].map(o => (
+                <button key={o} className={`chip ${data.leaks===o?"on":""}`} onClick={()=>u("leaks",o)}>{o}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div>
+          <label className="rfq-label">Rooftop equipment (select all that apply)</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {EQUIP_OPTS.map(eq => (
+              <button key={eq} className={`chip ${(data.equipment||[]).includes(eq)?"on":""}`} onClick={()=>togEquip(eq)}>{eq}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="rfq-label">Anything else we should know? (optional)</label>
+          <textarea className="rfq-input" rows={3} placeholder="Access limitations, drainage issues, upcoming deadlines…" value={data.notes||""} onChange={e=>u("notes",e.target.value)} style={{resize:"vertical"}}/>
+        </div>
+      </div>
+
+      <button className="rfq-btn" style={{width:"100%",marginTop:28}} disabled={!ok} onClick={onNext}>
+        Continue
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 4 — CONTACT ═══════════════════════════ */
+function ContactStep({ data, setData, onNext }) {
+  const u = (k,v) => setData(p => ({...p,[k]:v}));
+  const ok = data.name && data.email && data.phone;
+  return (
+    <div className="up" style={{maxWidth:500,margin:"0 auto",padding:"32px 24px"}}>
+      <Badge>Step 4 of 5</Badge>
+      <h2 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:28,fontWeight:800,color:T.text,margin:"14px 0 6px",letterSpacing:"-.5px"}}>
+        Your contact info
+      </h2>
+      <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:15,marginBottom:28,lineHeight:1.6}}>
+        This gets shared with the contractors you choose so they can follow up with a detailed quote.
+      </p>
+      <div style={{display:"flex",flexDirection:"column",gap:18}}>
+        <div><label className="rfq-label">Full name</label><input className="rfq-input" placeholder="Jane Smith" value={data.name||""} onChange={e=>u("name",e.target.value)}/></div>
+        <div><label className="rfq-label">Company or building name</label><input className="rfq-input" placeholder="Optional" value={data.company||""} onChange={e=>u("company",e.target.value)}/></div>
+        <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:200}}><label className="rfq-label">Email</label><input className="rfq-input" type="email" placeholder="jane@company.com" value={data.email||""} onChange={e=>u("email",e.target.value)}/></div>
+          <div style={{flex:1,minWidth:200}}><label className="rfq-label">Phone</label><input className="rfq-input" type="tel" placeholder="(416) 555-1234" value={data.phone||""} onChange={e=>u("phone",e.target.value)}/></div>
+        </div>
+      </div>
+      <button className="rfq-btn" style={{width:"100%",marginTop:28}} disabled={!ok} onClick={onNext}>
+        View My Budget Estimate
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 5 — BUDGET ═══════════════════════════ */
+function BudgetStep({ budget, area, survey, address, onFindRoofers }) {
+  return (
+    <div className="up" style={{maxWidth:640,margin:"0 auto",padding:"32px 24px"}}>
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <Badge color={T.gold} bg={T.goldLt}>Budget Estimate</Badge>
+        <h2 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:32,fontWeight:800,color:T.text,margin:"14px 0 4px",letterSpacing:"-1px"}}>
+          Your flat roof replacement
+        </h2>
+        <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:14}}>
+          Based on current industry averages for {fmt(area)} sq ft of {PRICING[survey.roofType]?.label || survey.roofType}
+        </p>
+      </div>
+
+      <Card style={{textAlign:"center",padding:"32px 24px",marginBottom:20,background:`linear-gradient(135deg, ${T.accent} 0%, #2d5a8e 100%)`,border:"none"}}>
+        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"rgba(255,255,255,.65)",fontWeight:600,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Estimated Budget Range</div>
+        <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:44,fontWeight:800,color:"#fff",letterSpacing:"-1.5px"}}>
+          {fmtC(budget.low)} <span style={{fontSize:24,opacity:.5,margin:"0 4px"}}>—</span> {fmtC(budget.high)}
+        </div>
+        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"rgba(255,255,255,.55)",marginTop:8}}>
+          ${budget.sqLo} – ${budget.sqHi} per sq ft
+        </div>
+      </Card>
+
+      <Card style={{marginBottom:20}}>
+        <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:15,fontWeight:700,color:T.text,marginBottom:16}}>Project Summary</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px 24px"}}>
+          {[
+            ["Location",address],
+            ["Roof Area",`${fmt(area)} sq ft`],
+            ["System",PRICING[survey.roofType]?.label||survey.roofType],
+            ["Age",survey.age],
+            ["Condition",COND_OPTS.find(c=>c.v===survey.condition)?.l||survey.condition],
+            ["Stories",survey.stories],
+            ["Known Leaks",survey.leaks||"N/A"],
+            ["Equipment",(survey.equipment||[]).length?survey.equipment.join(", "):"None"],
+          ].map(([k,v],i)=>(
+            <div key={i}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.textLt,textTransform:"uppercase",letterSpacing:.5,fontWeight:600}}>{k}</div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:T.text,marginTop:2}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {survey.notes && <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.textLt,textTransform:"uppercase",letterSpacing:.5,fontWeight:600}}>Additional Notes</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:T.text,marginTop:4}}>{survey.notes}</div>
+        </div>}
+      </Card>
+
+      <div style={{background:T.surface2,borderRadius:14,padding:16,marginBottom:28,display:"flex",alignItems:"flex-start",gap:12}}>
+        <svg style={{marginTop:1,flexShrink:0}} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:T.textMd,lineHeight:1.6}}>
+          This is a planning-level estimate. Final pricing depends on materials, scope, access, and contractor. Request quotes from commercial roofers below for exact numbers.
+        </p>
+      </div>
+
+      <button className="rfq-btn rfq-btn-gold" style={{width:"100%",fontSize:16,padding:"16px 32px",borderRadius:14}} onClick={onFindRoofers}>
+        Find Commercial Roofers Near Me
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ STEP 6 — ROOFERS (Google Places + Email) ═══════════════════════════ */
+function RooferStep({ address, budget, customer, survey, area }) {
+  const [roofers, setRoofers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [sent, setSent] = useState({});
+  const [sending, setSending] = useState({});
+
+  const mapDiv = useRef(null);
+
+  useEffect(() => { fetchRoofers(); }, []);
+
+  async function fetchRoofers() {
+    setLoading(true); setErr(null);
+    try {
+      await loadGmaps();
+      if (!mapDiv.current) mapDiv.current = document.createElement("div");
+      const service = new window.google.maps.places.PlacesService(mapDiv.current);
+
+      const results = await new Promise((resolve, reject) => {
+        service.textSearch({ query: `commercial flat roofing contractors near ${address}` }, (res, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && res) resolve(res);
+          else if (status === window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS) resolve([]);
+          else reject(new Error("Places search: " + status));
+        });
+      });
+
+      if (results.length > 0) {
+        const detailed = await Promise.all(
+          results.slice(0, 20).map(place => new Promise(resolve => {
+            service.getDetails(
+              { placeId: place.place_id, fields: ["name","formatted_address","formatted_phone_number","website","rating","user_ratings_total","url"] },
+              (d, s) => {
+                if (s === window.google.maps.places.PlacesServiceStatus.OK && d) {
+                  resolve({ name:d.name||place.name, address:d.formatted_address||"", phone:d.formatted_phone_number||"", website:d.website||"", rating:d.rating||null, reviews:d.user_ratings_total||0, mapsUrl:d.url||"" });
+                } else {
+                  resolve({ name:place.name, address:place.formatted_address||"", phone:"", website:"", rating:place.rating||null, reviews:place.user_ratings_total||0, mapsUrl:"" });
+                }
+              }
+            );
+          }))
+        );
+        setRoofers(detailed);
+      } else {
+        setRoofers([]);
+      }
+    } catch (e) {
+      console.error("Places error:", e);
+      setErr("Couldn't search automatically. Make sure Maps JavaScript API and Places API are enabled.");
+      setRoofers([]);
+    }
+    setLoading(false);
+  }
+
+  function buildProjectData(roofer) {
+    return {
+      roofer: { name: roofer.name, email: roofer.website ? "" : "" },
+      customer: { name: customer.name, company: customer.company || "", email: customer.email, phone: customer.phone },
+      project: {
+        address,
+        area: fmt(area),
+        roofType: PRICING[survey.roofType]?.label || survey.roofType,
+        age: survey.age,
+        condition: COND_OPTS.find(c => c.v === survey.condition)?.l || survey.condition,
+        stories: survey.stories,
+        leaks: survey.leaks || "N/A",
+        equipment: (survey.equipment || []).join(", ") || "None",
+        notes: survey.notes || "",
+      },
+      budget: { low: fmtC(budget.low), high: fmtC(budget.high), perSqftLow: "$" + budget.sqLo, perSqftHigh: "$" + budget.sqHi },
+    };
+  }
+
+  function saveLeadLocally(roofer, status) {
+    try {
+      const leads = JSON.parse(localStorage.getItem("rfq_leads") || "[]");
+      leads.push({
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        customer: { name: customer.name, email: customer.email, phone: customer.phone, company: customer.company || "" },
+        roofer: roofer.name,
+        address,
+        area: fmt(area),
+        budgetLow: fmtC(budget.low),
+        budgetHigh: fmtC(budget.high),
+        status,
+      });
+      localStorage.setItem("rfq_leads", JSON.stringify(leads));
+    } catch {}
+  }
+
+  async function handleSend(roofer, idx) {
+    setSending(p => ({ ...p, [idx]: true }));
+    try {
+      const payload = buildProjectData(roofer);
+      const res = await fetch("/.netlify/functions/send-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSent(p => ({ ...p, [idx]: "sent" }));
+        saveLeadLocally(roofer, "sent");
+      } else {
+        throw new Error(data.error || "Send failed");
+      }
+    } catch (e) {
+      console.error("Send error:", e);
+      setSent(p => ({ ...p, [idx]: "error" }));
+      saveLeadLocally(roofer, "error");
+    }
+    setSending(p => ({ ...p, [idx]: false }));
+  }
+
+  const sentN = Object.values(sent).filter(v => v === "sent").length;
+  const errN = Object.values(sent).filter(v => v === "error").length;
+
+  return (
+    <div className="up" style={{maxWidth:820,margin:"0 auto",padding:"24px"}}>
+      <div style={{textAlign:"center",marginBottom:24}}>
+        <Badge>Step 5 of 5</Badge>
+        <h2 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:28,fontWeight:800,color:T.text,margin:"12px 0 4px",letterSpacing:"-.5px"}}>
+          Commercial Roofers Near You
+        </h2>
+        <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:14,maxWidth:480,margin:"0 auto",lineHeight:1.6}}>
+          Top commercial roofing companies in your area. Click "Send Lead" and we'll email them your project details from RoofRFQ.
+        </p>
+        {sentN > 0 && <div style={{marginTop:10}}><Badge color={T.green} bg={T.greenLt}>✓ {sentN} lead{sentN>1?"s":""} sent</Badge></div>}
+        {errN > 0 && <div style={{marginTop:6}}><Badge color={T.red} bg={T.redLt}>{errN} failed — click Retry</Badge></div>}
+      </div>
+
+      {loading ? (
+        <div style={{textAlign:"center",padding:60}}>
+          <div className="spin" style={{width:28,height:28,borderRadius:"50%",border:`3px solid ${T.accent}`,borderTopColor:"transparent",margin:"0 auto 14px"}}/>
+          <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:14}}>Searching for commercial roofers near you…</p>
+        </div>
+      ) : (
+        <>
+          {err && <div style={{background:T.goldLt,border:`1px solid ${T.gold}`,borderRadius:12,padding:14,marginBottom:16,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#92400e"}}>{err}</div>}
+
+          {roofers.length === 0 && !err && (
+            <div style={{textAlign:"center",padding:40}}>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:T.textMd}}>No roofers found in this area. Try a broader search area.</p>
+            </div>
+          )}
+
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {roofers.map((r,i) => (
+              <div key={i} style={{background:T.white,borderRadius:14,padding:"16px 20px",border:`1.5px solid ${sent[i]==="sent"?T.green:sent[i]==="error"?T.red:T.border}`,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",transition:"border-color .2s"}}>
+                <div style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:T.surface2,fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,color:T.accent,fontSize:14,flexShrink:0}}>
+                  {i+1}
+                </div>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:700,color:T.text,fontSize:15}}>{r.name}</span>
+                    {r.rating && (
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#92400e",background:"#fef3c7",padding:"2px 8px",borderRadius:100,fontWeight:600}}>
+                        ★ {r.rating}{r.reviews ? ` (${r.reviews})` : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textMd,marginTop:3}}>
+                    {r.address}{r.phone ? ` · ${r.phone}` : ""}
+                  </div>
+                  <div style={{display:"flex",gap:12,marginTop:4}}>
+                    {r.website && <a href={r.website.startsWith("http")?r.website:`https://${r.website}`} target="_blank" rel="noopener noreferrer" style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.accent2,textDecoration:"none"}}>Website ↗</a>}
+                    {r.mapsUrl && <a href={r.mapsUrl} target="_blank" rel="noopener noreferrer" style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textMd,textDecoration:"none"}}>View on Maps ↗</a>}
+                  </div>
+                </div>
+                <div style={{flexShrink:0}}>
+                  {sent[i] === "sent" ? (
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:T.green,display:"flex",alignItems:"center",gap:5,padding:"10px 16px"}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      Lead Sent
+                    </span>
+                  ) : sent[i] === "error" ? (
+                    <button className="rfq-btn-out" style={{borderColor:T.red,color:T.red,fontSize:12,padding:"8px 14px"}} disabled={sending[i]} onClick={() => handleSend(r,i)}>Retry</button>
+                  ) : (
+                    <button className="rfq-btn" style={{fontSize:13,padding:"10px 20px"}} disabled={sending[i]} onClick={() => handleSend(r,i)}>
+                      {sending[i] ? <><div className="spin" style={{width:14,height:14,borderRadius:"50%",border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",display:"inline-block"}}/> Sending…</> : "Send Lead"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {roofers.length > 1 && (
+            <div style={{marginTop:24,textAlign:"center"}}>
+              <button className="rfq-btn rfq-btn-gold" style={{padding:"14px 36px",borderRadius:14}}
+                onClick={() => roofers.forEach((r,i) => { if (!sent[i] && !sending[i]) handleSend(r,i); })}>
+                Send Lead to All {roofers.length} Companies
+              </button>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textLt,marginTop:10}}>
+                Each company will be emailed your project details from hello@roofrfq.ca
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════ MAIN ═══════════════════════════ */
+function RoofRFQ() {
+  const [step, setStep] = useState(0);
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState(null);
+  const [area, setArea] = useState(0);
+  const [survey, setSurvey] = useState({});
+  const [customer, setCustomer] = useState({});
+  const [budget, setBudget] = useState(null);
+
+  useEffect(() => {
+    const s = document.createElement("style"); s.textContent = CSS;
+    document.head.appendChild(s); return () => document.head.removeChild(s);
+  }, []);
+
+  const pickAddr = (a, ll) => { setAddress(a); setCoords(ll); setStep(2); };
+  const confirmArea = a => { setArea(a); setStep(3); };
+  const finishSurvey = () => setStep(4);
+  const showBudget = () => {
+    const ci = COND_OPTS.findIndex(c=>c.v===survey.condition);
+    setBudget(calcBudget(area, survey.roofType, ci, survey.stories, survey.leaks==="Yes", (survey.equipment||[]).filter(e=>e!=="None / Minimal").length));
+    setStep(5);
+  };
+
+  const LABELS = ["Address","Measure","Details","Contact","Estimate","Connect"];
+
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,fontFamily:"'DM Sans',sans-serif"}}>
+
+      {step > 0 && (
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 24px",borderBottom:`1px solid ${T.border}`,background:T.white}}>
+          <div style={{cursor:"pointer"}} onClick={()=>setStep(0)}><Logo size={26}/></div>
+          {step > 1 && step <= 6 && (
+            <button style={{background:"transparent",border:"none",color:T.textMd,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:500,display:"flex",alignItems:"center",gap:4}}
+              onClick={()=>setStep(p=>Math.max(p-1,1))}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              Back
+            </button>
+          )}
+        </div>
+      )}
+
+      {step > 0 && <div style={{padding:"16px 24px 0",maxWidth:880,margin:"0 auto"}}><StepNav current={step-1} labels={LABELS}/></div>}
+
+      <div style={{paddingBottom:48}}>
+        {step===0 && <Landing onStart={()=>setStep(1)}/>}
+        {step===1 && <AddressStep onSelect={pickAddr}/>}
+        {step===2 && coords && <MapStep coords={coords} onConfirm={confirmArea}/>}
+        {step===3 && <SurveyStep data={survey} setData={setSurvey} onNext={finishSurvey}/>}
+        {step===4 && <ContactStep data={customer} setData={setCustomer} onNext={showBudget}/>}
+        {step===5 && budget && <BudgetStep budget={budget} area={area} survey={survey} address={address} onFindRoofers={()=>setStep(6)}/>}
+        {step===6 && <RooferStep address={address} budget={budget} customer={customer} survey={survey} area={area}/>}
+      </div>
+
+      <div style={{textAlign:"center",padding:"20px 24px",borderTop:`1px solid ${T.border}`,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:T.textLt}}>
+        © {new Date().getFullYear()} RoofRFQ — Estimates are for planning purposes only and do not constitute a formal quote.
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(RoofRFQ));
+  </script>
+</body>
+</html>

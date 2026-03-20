@@ -35,7 +35,7 @@ exports.handler = async (event) => {
     }
 
     const timestamp = new Date().toISOString();
-    const subject = `New Warm Lead: Flat Roof Replacement – ${project.address}`;
+    const subject = `New Lead: Flat Roof Replacement – ${project.address}`;
 
     // ── HTML Email Template ──
     const html = `
@@ -48,7 +48,7 @@ exports.handler = async (event) => {
     <!-- Header -->
     <div style="background:#1e3a5f;border-radius:14px 14px 0 0;padding:28px 32px;text-align:center;">
       <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">
-        🏗️ New Warm Lead from RoofRFQ
+        New Lead from RoofRFQ
       </h1>
       <p style="margin:8px 0 0;color:rgba(255,255,255,0.65);font-size:13px;">
         A building owner is looking for a flat roof replacement quote
@@ -172,7 +172,7 @@ exports.handler = async (event) => {
 </html>`;
 
     // ── Plain text fallback ──
-    const text = `NEW WARM LEAD FROM ROOFRFQ
+    const text = `NEW LEAD FROM ROOFRFQ
 
 Customer: ${customer.name}${customer.company ? ` (${customer.company})` : ""}
 Email: ${customer.email}
@@ -195,20 +195,20 @@ Reply to this email to reach the customer directly, or call ${customer.phone}.
 ---
 Sent via RoofRFQ · roofrfq.ca · ${timestamp}`;
 
-    // ── Send to roofer ──
+    // ── Build recipient list ──
+    const toList = [ADMIN_EMAIL];  // Always send to hello@roofrfq.ca
+    if (roofer.email && roofer.email !== ADMIN_EMAIL) {
+      toList.push(roofer.email);  // Also send to roofer if we have their email
+    }
+
     const emailPayload = {
       from: "RoofRFQ Leads <hello@roofrfq.ca>",
-      to: [roofer.email || ADMIN_EMAIL],  // If we don't have roofer's email, send to admin
+      to: toList,
       reply_to: customer.email,
       subject: subject,
       html: html,
       text: text,
     };
-
-    // Add BCC to admin if we have a roofer email and an admin email
-    if (roofer.email && ADMIN_EMAIL) {
-      emailPayload.bcc = [ADMIN_EMAIL];
-    }
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

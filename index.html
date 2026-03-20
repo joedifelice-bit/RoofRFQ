@@ -821,13 +821,13 @@ const TORONTO = { lat: 43.6532, lng: -79.3832 };
 const PRIORITY_RADIUS_KM = 150;
 
 const PRIORITY_ROOFERS = [
-  { name: "Flynn Canada", address: "Mississauga, ON", phone: "(905) 564-8255", website: "https://flynncompanies.com", rating: 4.2, reviews: 45, mapsUrl: "https://maps.google.com/?q=Flynn+Canada+Mississauga", featured: true },
-  { name: "Masi Group", address: "Vaughan, ON", phone: "(905) 660-5433", website: "https://masigroup.ca", rating: 4.5, reviews: 32, mapsUrl: "https://maps.google.com/?q=Masi+Group+Vaughan+ON", featured: true },
-  { name: "Solid Seal Group Inc", address: "Toronto, ON", phone: "(416) 291-0707", website: "https://solidsealgroup.com", rating: 4.6, reviews: 28, mapsUrl: "https://maps.google.com/?q=Solid+Seal+Group+Toronto", featured: true },
-  { name: "Bothwell-Accurate", address: "Toronto, ON", phone: "(416) 701-0074", website: "https://bothwellaccurate.com", rating: 4.4, reviews: 38, mapsUrl: "https://maps.google.com/?q=Bothwell+Accurate+Toronto", featured: true },
-  { name: "Semple-Gooder", address: "Mississauga, ON", phone: "(905) 564-0726", website: "https://semplegooder.com", rating: 4.3, reviews: 22, mapsUrl: "https://maps.google.com/?q=Semple+Gooder+Mississauga", featured: true },
-  { name: "Specified Roofing", address: "Concord, ON", phone: "(905) 669-8177", website: "https://specifiedroofing.com", rating: 4.5, reviews: 18, mapsUrl: "https://maps.google.com/?q=Specified+Roofing+Concord+ON", featured: true },
-  { name: "Old South Roofing", address: "London, ON", phone: "(519) 649-5559", website: "https://oldsouthroofing.ca", rating: 4.7, reviews: 52, mapsUrl: "https://maps.google.com/?q=Old+South+Roofing+London+ON", featured: true },
+  { name: "Flynn Canada", address: "Mississauga, ON", phone: "(905) 564-8255", website: "https://flynncompanies.com", email: "info@flynncompanies.com", rating: 4.2, reviews: 45, mapsUrl: "https://maps.google.com/?q=Flynn+Canada+Mississauga", featured: true },
+  { name: "Masi Group", address: "Vaughan, ON", phone: "(416) 613-5485", website: "https://masigroup.ca", email: "vmanzella@masigroup.ca", rating: 4.5, reviews: 32, mapsUrl: "https://maps.google.com/?q=Masi+Group+Vaughan+ON", featured: true },
+  { name: "Solid Seal Group Inc", address: "Durham Region, ON", phone: "(905) 239-2464", website: "https://solidsealgroup.com", email: "estimating@solidsealgroup.com", rating: 4.6, reviews: 28, mapsUrl: "https://maps.google.com/?q=Solid+Seal+Group+Ontario", featured: true },
+  { name: "Bothwell-Accurate", address: "Mississauga, ON", phone: "(905) 673-0615", website: "https://bothwell-accurate.com", email: "mfigueriedo@bothwell-accurate.com", rating: 4.4, reviews: 38, mapsUrl: "https://maps.google.com/?q=Bothwell+Accurate+Mississauga", featured: true },
+  { name: "Semple-Gooder", address: "Toronto, ON", phone: "(416) 743-5370", website: "https://semplegooder.com", email: "ssullivan@semplegooder.com", rating: 4.3, reviews: 22, mapsUrl: "https://maps.google.com/?q=Semple+Gooder+Toronto", featured: true },
+  { name: "Specified Roofing", address: "Concord, ON", phone: "(905) 669-8177", website: "https://specifiedroofing.com", email: "info@specifiedroofing.com", rating: 4.5, reviews: 18, mapsUrl: "https://maps.google.com/?q=Specified+Roofing+Concord+ON", featured: true },
+  { name: "Old South Roofing", address: "London, ON", phone: "(226) 224-1911", website: "https://oldsouthroofing.com", email: "sales@os-roofing.ca", rating: 4.8, reviews: 52, mapsUrl: "https://maps.google.com/?q=Old+South+Roofing+London+ON", featured: true },
 ];
 
 function distKm(lat1, lng1, lat2, lng2) {
@@ -905,7 +905,7 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
 
   function buildProjectData(roofer) {
     return {
-      roofer: { name: roofer.name, email: roofer.website ? "" : "" },
+      roofer: { name: roofer.name, email: roofer.email || "" },
       customer: { name: customer.name, company: customer.company || "", email: customer.email, phone: customer.phone },
       project: {
         address,

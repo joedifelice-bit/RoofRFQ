@@ -1,140 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RoofRFQ — Lead Dashboard</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>RoofRFQ — Admin Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #fafaf9; font-family: 'DM Sans', sans-serif; color: #1c1917; min-height: 100vh; }
-    .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
-    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
-    h1 { font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
-    h1 span { color: #1e3a5f; }
-    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-    .stat { background: #fff; border: 1.5px solid #e7e5e4; border-radius: 14px; padding: 16px 24px; flex: 1; min-width: 140px; }
-    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #a8a29e; font-weight: 600; }
-    .stat-value { font-family: 'Bricolage Grotesque', sans-serif; font-size: 32px; font-weight: 800; color: #1e3a5f; margin-top: 4px; }
-    .stat-sub { font-size: 12px; color: #57534e; margin-top: 2px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 14px; overflow: hidden; border: 1.5px solid #e7e5e4; }
-    th { background: #1e3a5f; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    td { padding: 12px 16px; border-bottom: 1px solid #f5f5f4; font-size: 13px; vertical-align: top; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #fafaf9; }
-    .status-sent { color: #16a34a; font-weight: 600; }
-    .status-error { color: #dc2626; font-weight: 600; }
-    .empty { text-align: center; padding: 60px 24px; color: #a8a29e; }
-    .btn { background: #1e3a5f; color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
-    .btn:hover { background: #162d4a; }
-    .btn-outline { background: transparent; color: #dc2626; border: 1.5px solid #dc2626; }
-    .btn-outline:hover { background: #fef2f2; }
-    .actions { display: flex; gap: 8px; }
-    @media (max-width: 640px) {
-      td:nth-child(4), th:nth-child(4), td:nth-child(5), th:nth-child(5) { display: none; }
-    }
+    *{box-sizing:border-box;margin:0;padding:0}body{background:#fafaf9;font-family:'DM Sans',sans-serif;color:#1c1917;min-height:100vh}
+    .c{max-width:960px;margin:0 auto;padding:32px 24px}
+    .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px}
+    h1{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.5px}h1 span{color:#1e3a5f}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+    .stat{background:#fff;border:1.5px solid #e7e5e4;border-radius:14px;padding:16px 20px}
+    .stat-l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#a8a29e;font-weight:600}
+    .stat-v{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#1e3a5f;margin-top:4px}
+    .stat-s{font-size:12px;color:#57534e;margin-top:2px}
+    .stat.green .stat-v{color:#16a34a}.stat.gold .stat-v{color:#ca8a04}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;border:1.5px solid #e7e5e4}
+    th{background:#1e3a5f;color:#fff;padding:12px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    td{padding:10px 14px;border-bottom:1px solid #f5f5f4;font-size:13px;vertical-align:top}
+    tr:last-child td{border-bottom:none}tr:hover td{background:#fafaf9}
+    .badge{display:inline-block;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+    .badge.full{color:#166534;background:#dcfce7}.badge.free{color:#1e3a5f;background:#dbeafe}
+    .badge.blurred{color:#92400e;background:#fef3c7}.badge.error{color:#dc2626;background:#fef2f2}
+    .btn{background:#1e3a5f;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+    .btn:hover{background:#162d4a}
+    .btn-o{background:transparent;color:#dc2626;border:1.5px solid #dc2626}.btn-o:hover{background:#fef2f2}
+    .actions{display:flex;gap:8px}
+    @media(max-width:700px){td:nth-child(5),th:nth-child(5),td:nth-child(6),th:nth-child(6){display:none}}
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>Roof<span>RFQ</span> — Lead Dashboard</h1>
-      <div class="actions">
-        <button class="btn" onclick="exportCSV()">Export CSV</button>
-        <button class="btn btn-outline" onclick="clearLeads()">Clear All</button>
-      </div>
+<div class="c">
+  <div class="hdr">
+    <h1>Roof<span>RFQ</span> — Admin</h1>
+    <div class="actions">
+      <button class="btn" onclick="exportCSV()">Export CSV</button>
+      <button class="btn btn-o" onclick="clearAll()">Clear All</button>
     </div>
-
-    <div class="stats" id="stats"></div>
-    <div id="content"></div>
   </div>
+  <div class="stats" id="stats"></div>
+  <div id="content"></div>
+</div>
+<script>
+function getLeads(){try{return JSON.parse(localStorage.getItem("rfq_leads")||"[]")}catch{return[]}}
 
-  <script>
-    function getLeads() {
-      try { return JSON.parse(localStorage.getItem("rfq_leads") || "[]"); }
-      catch { return []; }
-    }
+function render(){
+  const leads=getLeads();
+  const sent=leads.filter(l=>l.status==="sent").length;
+  const failed=leads.filter(l=>l.status==="error").length;
+  const full=leads.filter(l=>l.emailType==="full").length;
+  const free=leads.filter(l=>l.emailType==="free").length;
+  const blurred=leads.filter(l=>l.emailType==="blurred").length;
+  const customers=[...new Set(leads.map(l=>l.customer?.email))].length;
+  const roofers=[...new Set(leads.map(l=>l.roofer))].length;
 
-    function render() {
-      const leads = getLeads();
-      const sent = leads.filter(l => l.status === "sent").length;
-      const failed = leads.filter(l => l.status === "error").length;
-      const uniqueCustomers = [...new Set(leads.map(l => l.customer?.email))].length;
+  // Revenue estimates
+  const unlocks=leads.filter(l=>l.emailType==="blurred").length;
+  const potentialRev=unlocks*100;
 
-      document.getElementById("stats").innerHTML = `
-        <div class="stat">
-          <div class="stat-label">Total Leads Sent</div>
-          <div class="stat-value">${sent}</div>
-          <div class="stat-sub">${failed > 0 ? `${failed} failed` : "All successful"}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Unique Customers</div>
-          <div class="stat-value">${uniqueCustomers}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Unique Roofers Contacted</div>
-          <div class="stat-value">${[...new Set(leads.map(l => l.roofer))].length}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Avg Budget</div>
-          <div class="stat-value" style="font-size:22px">${leads.length ? leads[0].budgetLow + " – " + leads[0].budgetHigh : "—"}</div>
-        </div>
-      `;
+  document.getElementById("stats").innerHTML=`
+    <div class="stat"><div class="stat-l">Total Leads</div><div class="stat-v">${leads.length}</div><div class="stat-s">${sent} sent · ${failed} failed</div></div>
+    <div class="stat"><div class="stat-l">Lead Types</div><div class="stat-v" style="font-size:18px">${full} full · ${free} free</div><div class="stat-s">${blurred} blurred/paywalled</div></div>
+    <div class="stat"><div class="stat-l">Customers</div><div class="stat-v">${customers}</div></div>
+    <div class="stat"><div class="stat-l">Roofers Reached</div><div class="stat-v">${roofers}</div></div>
+    <div class="stat gold"><div class="stat-l">Potential Revenue</div><div class="stat-v">$${potentialRev.toLocaleString()}</div><div class="stat-s">${unlocks} blurred leads × $100</div></div>
+  `;
 
-      if (leads.length === 0) {
-        document.getElementById("content").innerHTML = `
-          <div class="empty">
-            <p style="font-size:18px;margin-bottom:8px;">No leads yet</p>
-            <p>Leads will appear here when customers request quotes through RoofRFQ.</p>
-          </div>`;
-        return;
-      }
+  if(!leads.length){document.getElementById("content").innerHTML=`<div style="text-align:center;padding:60px;color:#a8a29e"><p style="font-size:18px;margin-bottom:8px">No leads yet</p><p>Leads appear here when customers request quotes.</p></div>`;return}
 
-      const rows = leads.slice().reverse().map(l => `
-        <tr>
-          <td>${new Date(l.timestamp).toLocaleDateString()} <span style="color:#a8a29e">${new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></td>
-          <td><strong>${l.customer?.name || "—"}</strong><br><span style="color:#57534e">${l.customer?.email || ""}</span><br><span style="color:#a8a29e">${l.customer?.phone || ""}</span></td>
-          <td>${l.roofer || "—"}</td>
-          <td>${l.address || "—"}<br><span style="color:#a8a29e">${l.area || ""} sq ft</span></td>
-          <td>${l.budgetLow || "—"} – ${l.budgetHigh || ""}</td>
-          <td><span class="status-${l.status}">${l.status === "sent" ? "✓ Sent" : "✗ Failed"}</span></td>
-        </tr>
-      `).join("");
+  const rows=leads.slice().reverse().map(l=>`<tr>
+    <td>${new Date(l.timestamp).toLocaleDateString()} <span style="color:#a8a29e">${new Date(l.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></td>
+    <td><strong>${l.customer?.name||"—"}</strong><br><span style="color:#57534e">${l.customer?.email||""}</span></td>
+    <td>${l.roofer||"—"}</td>
+    <td>${l.address||"—"}<br><span style="color:#a8a29e">${l.area||""} sq ft</span></td>
+    <td>${l.budgetLow||"—"} – ${l.budgetHigh||""}</td>
+    <td><span class="badge ${l.emailType||l.status}">${l.emailType||l.status}</span></td>
+  </tr>`).join("");
 
-      document.getElementById("content").innerHTML = `
-        <table>
-          <thead><tr>
-            <th>Date</th><th>Customer</th><th>Roofer</th><th>Property</th><th>Budget</th><th>Status</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
+  document.getElementById("content").innerHTML=`<table><thead><tr><th>Date</th><th>Customer</th><th>Roofer</th><th>Property</th><th>Budget</th><th>Type</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 
-    function exportCSV() {
-      const leads = getLeads();
-      if (!leads.length) return alert("No leads to export.");
-      const headers = ["Date","Customer Name","Email","Phone","Company","Roofer","Address","Area (sqft)","Budget Low","Budget High","Status"];
-      const rows = leads.map(l => [
-        l.timestamp, l.customer?.name, l.customer?.email, l.customer?.phone, l.customer?.company,
-        l.roofer, l.address, l.area, l.budgetLow, l.budgetHigh, l.status
-      ].map(v => `"${(v||"").toString().replace(/"/g,'""')}"`).join(","));
-      const csv = [headers.join(","), ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `roofrfq-leads-${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-    }
+function exportCSV(){
+  const leads=getLeads();if(!leads.length)return alert("No leads.");
+  const h=["Date","Customer","Email","Phone","Company","Roofer","Address","Area","Budget Low","Budget High","Status","Email Type"];
+  const rows=leads.map(l=>[l.timestamp,l.customer?.name,l.customer?.email,l.customer?.phone,l.customer?.company,l.roofer,l.address,l.area,l.budgetLow,l.budgetHigh,l.status,l.emailType||""].map(v=>`"${(v||"").toString().replace(/"/g,'""')}"`).join(","));
+  const blob=new Blob([[h.join(","),...rows].join("\n")],{type:"text/csv"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`roofrfq-leads-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
 
-    function clearLeads() {
-      if (confirm("Delete all lead data? This cannot be undone.")) {
-        localStorage.removeItem("rfq_leads");
-        render();
-      }
-    }
-
-    render();
-  </script>
+function clearAll(){if(confirm("Delete all lead data?")){localStorage.removeItem("rfq_leads");render()}}
+render();
+</script>
 </body>
 </html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoofRFQ — Roofer Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#fafaf9;font-family:'DM Sans',sans-serif;color:#1c1917;min-height:100vh}
+    .wrap{max-width:720px;margin:0 auto;padding:32px 24px}
+    .logo{display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;text-decoration:none}
+    .logo svg{width:28px;height:28px}
+    .logo span{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;color:#1c1917}
+    .logo .a{color:#1e3a5f}
+    h1{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+    h2{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px}
+    p.sub{color:#57534e;font-size:15px;line-height:1.6;margin-bottom:28px}
+    .card{background:#fff;border:1.5px solid #e7e5e4;border-radius:16px;padding:28px;margin-bottom:20px}
+    .card.accent{border-color:#1e3a5f;background:#f8faff}
+    .card.gold{border-color:#ca8a04;background:#fffbeb}
+    .card.green{border-color:#16a34a;background:#f0fdf4}
+    .input{width:100%;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;padding:14px 16px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+    .input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#1e3a5f;color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;text-decoration:none}
+    .btn:hover{background:#162d4a;transform:translateY(-1px);box-shadow:0 4px 16px rgba(30,58,95,.2)}
+    .btn.gold{background:linear-gradient(135deg,#ca8a04,#a16207)}
+    .btn.gold:hover{box-shadow:0 4px 16px rgba(202,138,4,.3)}
+    .btn.outline{background:transparent;color:#1e3a5f;border:1.5px solid #1e3a5f}
+    .btn.outline:hover{background:#f0f7ff}
+    .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+    .badge.green{color:#166534;background:#dcfce7}
+    .badge.blue{color:#1e3a5f;background:#dbeafe}
+    .badge.amber{color:#92400e;background:#fef3c7}
+    .badge.red{color:#dc2626;background:#fef2f2}
+    .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px}
+    .stat{text-align:center;padding:16px;background:#fff;border-radius:12px;border:1px solid #e7e5e4}
+    .stat-n{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#1e3a5f}
+    .stat-l{font-size:11px;color:#a8a29e;text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:2px}
+    .plans{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:24px 0}
+    .plan{background:#fff;border:1.5px solid #e7e5e4;border-radius:16px;padding:24px;text-align:center;transition:border-color .2s}
+    .plan:hover{border-color:#1e3a5f}
+    .plan.pop{border-color:#ca8a04;background:#fffbeb;position:relative}
+    .plan-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#ca8a04;color:#fff;font-size:10px;font-weight:700;padding:3px 12px;border-radius:100px;white-space:nowrap;letter-spacing:.5px}
+    .plan h3{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px}
+    .plan .price{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:#1e3a5f;margin-bottom:4px}
+    .plan .price small{font-size:14px;font-weight:500;color:#57534e}
+    .plan .desc{font-size:13px;color:#57534e;margin-bottom:16px;line-height:1.5}
+    .plan ul{list-style:none;text-align:left;margin-bottom:20px}
+    .plan li{font-size:13px;padding:4px 0;color:#1c1917}
+    .plan li::before{content:"✓ ";color:#16a34a;font-weight:700}
+    .hidden{display:none}
+    .loading{text-align:center;padding:40px;color:#a8a29e}
+    .spin{width:24px;height:24px;border-radius:50%;border:3px solid #e7e5e4;border-top-color:#1e3a5f;animation:spin .8s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:640px){.plans,.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <a href="/" class="logo">
+    <svg viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#1e3a5f"/><path d="M8 28L20 13L32 28" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="20" y1="28" x2="20" y2="22" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+    <span>Roof<span class="a">RFQ</span></span>
+  </a>
+
+  <!-- LOGIN -->
+  <div id="login">
+    <h1>Roofer Portal</h1>
+    <p class="sub">Enter your company email to view your leads, manage your subscription, and unlock new opportunities.</p>
+    <div class="card">
+      <label style="font-size:13px;font-weight:600;color:#57534e;display:block;margin-bottom:6px">Company Email</label>
+      <input class="input" id="emailInput" type="email" placeholder="estimating@yourcompany.com">
+      <button class="btn" style="width:100%;margin-top:16px" onclick="loadPortal()">Access Portal</button>
+    </div>
+  </div>
+
+  <!-- PORTAL -->
+  <div id="portal" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="margin-bottom:4px">Your Dashboard</h1>
+        <p style="color:#57534e;font-size:14px" id="portalEmail"></p>
+      </div>
+      <span class="badge" id="statusBadge"></span>
+    </div>
+
+    <div class="grid" id="statsGrid"></div>
+
+    <!-- STATUS CARDS -->
+    <div id="freeCard" class="card green hidden">
+      <h2>🎁 Your First Lead is Free</h2>
+      <p style="color:#57534e;font-size:14px;line-height:1.6">When a building owner requests a quote from your company, you'll receive the full lead details at no charge. After your first free lead, you'll need a subscription or per-lead unlock to access future leads.</p>
+    </div>
+
+    <div id="subCard" class="card accent hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin-bottom:4px">Active Subscription</h2>
+          <p style="color:#57534e;font-size:14px" id="subDetails"></p>
+        </div>
+        <button class="btn outline" onclick="manageSubscription()">Manage Subscription</button>
+      </div>
+    </div>
+
+    <div id="trialCard" class="card gold hidden">
+      <h2>🎉 Free Trial Active</h2>
+      <p style="color:#57534e;font-size:14px;line-height:1.6" id="trialDetails"></p>
+    </div>
+
+    <!-- PRICING -->
+    <div id="pricingSection">
+      <h2 style="margin-top:24px">Unlock More Leads</h2>
+      <p class="sub">Choose how you want to access commercial roofing leads.</p>
+
+      <div class="plans">
+        <div class="plan">
+          <h3>Pay Per Lead</h3>
+          <div class="price">$100 <small>/ lead</small></div>
+          <div class="desc">Unlock individual leads as they come in</div>
+          <ul>
+            <li>Full customer details</li>
+            <li>Project specs & budget</li>
+            <li>No commitment</li>
+          </ul>
+          <p style="font-size:12px;color:#a8a29e;margin-top:8px">Available from blurred lead emails</p>
+        </div>
+
+        <div class="plan pop">
+          <div class="plan-tag">MOST POPULAR</div>
+          <h3>Monthly</h3>
+          <div class="price">$299 <small>/ mo</small></div>
+          <div class="desc">Unlimited leads in your area</div>
+          <ul>
+            <li>1-month free trial</li>
+            <li>All leads fully unlocked</li>
+            <li>Cancel anytime</li>
+            <li>Priority support</li>
+          </ul>
+          <button class="btn gold" style="width:100%" onclick="subscribe('monthly')">Start Free Trial</button>
+        </div>
+
+        <div class="plan">
+          <h3>Annual</h3>
+          <div class="price">$2,400 <small>/ yr</small></div>
+          <div class="desc">Best value — save $1,188/year</div>
+          <ul>
+            <li>1-month free trial</li>
+            <li>All leads fully unlocked</li>
+            <li>$200/mo effective rate</li>
+            <li>Priority support</li>
+          </ul>
+          <button class="btn" style="width:100%" onclick="subscribe('annual')">Start Free Trial</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT HISTORY -->
+    <div id="paymentsSection" class="hidden">
+      <h2 style="margin-top:24px">Payment History</h2>
+      <div id="paymentsList"></div>
+    </div>
+  </div>
+
+  <div id="loadingEl" class="loading hidden">
+    <div class="spin"></div>
+    <p>Loading your portal...</p>
+  </div>
+</div>
+
+<script>
+let currentEmail = "";
+
+function getParams() {
+  const p = new URLSearchParams(window.location.search);
+  return { email: p.get("email"), action: p.get("action"), lead: p.get("lead") };
+}
+
+async function loadPortal(email) {
+  const e = email || document.getElementById("emailInput")?.value?.trim();
+  if (!e) return alert("Please enter your email.");
+  currentEmail = e;
+
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("portal").classList.add("hidden");
+  document.getElementById("loadingEl").classList.remove("hidden");
+
+  try {
+    const r = await fetch(`/.netlify/functions/roofer-status?email=${encodeURIComponent(e)}`);
+    const data = await r.json();
+    renderPortal(data, e);
+  } catch(err) {
+    console.error(err);
+    alert("Error loading portal. Please try again.");
+    document.getElementById("login").classList.remove("hidden");
+    document.getElementById("loadingEl").classList.add("hidden");
+  }
+}
+
+function renderPortal(data, email) {
+  document.getElementById("loadingEl").classList.add("hidden");
+  document.getElementById("portal").classList.remove("hidden");
+  document.getElementById("portalEmail").textContent = email;
+
+  // Status badge
+  const badge = document.getElementById("statusBadge");
+  const statusMap = {
+    subscribed: { text: "SUBSCRIBED", cls: "green" },
+    trial: { text: "FREE TRIAL", cls: "amber" },
+    free: { text: "FREE LEAD AVAILABLE", cls: "blue" },
+    new: { text: "FREE LEAD AVAILABLE", cls: "blue" },
+    paywall: { text: "SUBSCRIPTION REQUIRED", cls: "amber" },
+    no_stripe: { text: "NOT SET UP", cls: "red" },
+  };
+  const s = statusMap[data.status] || statusMap.no_stripe;
+  badge.textContent = s.text;
+  badge.className = `badge ${s.cls}`;
+
+  // Stats
+  document.getElementById("statsGrid").innerHTML = `
+    <div class="stat"><div class="stat-n">${data.lockedLeads || 0}</div><div class="stat-l">Pending Leads</div></div>
+    <div class="stat"><div class="stat-n">${data.payments?.length || 0}</div><div class="stat-l">Payments</div></div>
+    <div class="stat"><div class="stat-n">${data.payments?.reduce((s,p) => s + (p.status === "succeeded" ? p.amount : 0), 0)?.toLocaleString("en-US", {style:"currency",currency:"CAD",maximumFractionDigits:0}) || "$0"}</div><div class="stat-l">Total Spent</div></div>
+  `;
+
+  // Show relevant cards
+  document.getElementById("freeCard").classList.toggle("hidden", data.freeUsed || data.status === "subscribed" || data.status === "trial");
+  document.getElementById("subCard").classList.toggle("hidden", data.status !== "subscribed");
+  document.getElementById("trialCard").classList.toggle("hidden", data.status !== "trial");
+
+  if (data.subscription) {
+    const plan = data.subscription.plan === "annual" ? "$2,400/year" : "$299/month";
+    document.getElementById("subDetails").textContent = `${plan} · All leads unlocked automatically`;
+    if (data.subscription.trialEnd) {
+      const trialEnd = new Date(data.subscription.trialEnd * 1000).toLocaleDateString();
+      document.getElementById("trialDetails").innerHTML = `Your 30-day free trial is active! All leads are fully unlocked. Your first payment begins on <strong>${trialEnd}</strong>.`;
+    }
+  }
+
+  // Show/hide pricing
+  document.getElementById("pricingSection").classList.toggle("hidden", data.status === "subscribed" || data.status === "trial");
+
+  // Payments
+  if (data.payments?.length) {
+    document.getElementById("paymentsSection").classList.remove("hidden");
+    document.getElementById("paymentsList").innerHTML = `<div style="background:#fff;border:1px solid #e7e5e4;border-radius:12px;overflow:hidden">
+      ${data.payments.map(p => `<div style="padding:12px 16px;border-bottom:1px solid #f5f5f4;display:flex;justify-content:space-between;align-items:center">
+        <div><span style="font-weight:600">$${p.amount}</span> <span style="color:#a8a29e;font-size:12px">${p.currency.toUpperCase()}</span></div>
+        <div style="font-size:13px;color:#57534e">${new Date(p.date).toLocaleDateString()}</div>
+        <span class="badge ${p.status==='succeeded'?'green':'red'}">${p.status}</span>
+      </div>`).join("")}
+    </div>`;
+  }
+}
+
+async function subscribe(plan) {
+  if (!currentEmail) return;
+  try {
+    const r = await fetch("/.netlify/functions/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: `subscribe_${plan}`, email: currentEmail }),
+    });
+    const data = await r.json();
+    if (data.url) window.location.href = data.url;
+    else alert(data.error || "Could not create checkout session.");
+  } catch(err) { alert("Error creating checkout. Please try again."); }
+}
+
+async function manageSubscription() {
+  if (!currentEmail) return;
+  try {
+    const r = await fetch("/.netlify/functions/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "portal", email: currentEmail }),
+    });
+    const data = await r.json();
+    if (data.url) window.location.href = data.url;
+  } catch(err) { alert("Error opening portal."); }
+}
+
+// Auto-load from URL params
+window.addEventListener("DOMContentLoaded", () => {
+  const p = getParams();
+  if (p.email) {
+    document.getElementById("emailInput").value = p.email;
+    if (p.action === "unlock" && p.lead) {
+      // Redirect to Stripe checkout for lead unlock
+      fetch("/.netlify/functions/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unlock", email: p.email, leadId: p.lead }),
+      }).then(r => r.json()).then(data => {
+        if (data.url) window.location.href = data.url;
+        else loadPortal(p.email);
+      }).catch(() => loadPortal(p.email));
+    } else if (p.action === "subscribe") {
+      loadPortal(p.email);
+    } else {
+      loadPortal(p.email);
+    }
+  }
+});
+</script>
+</body>
+</html>

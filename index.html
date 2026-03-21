@@ -922,7 +922,7 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
     };
   }
 
-  function saveLeadLocally(roofer, status) {
+  function saveLeadLocally(roofer, status, emailType) {
     try {
       const leads = JSON.parse(localStorage.getItem("rfq_leads") || "[]");
       leads.push({
@@ -935,6 +935,7 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
         budgetLow: fmtC(budget.low),
         budgetHigh: fmtC(budget.high),
         status,
+        emailType: emailType || status,
       });
       localStorage.setItem("rfq_leads", JSON.stringify(leads));
     } catch {}
@@ -952,14 +953,14 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
       const data = await res.json();
       if (res.ok && data.success) {
         setSent(p => ({ ...p, [idx]: "sent" }));
-        saveLeadLocally(roofer, "sent");
+        saveLeadLocally(roofer, "sent", data.emailType || "full");
       } else {
         throw new Error(data.error || "Send failed");
       }
     } catch (e) {
       console.error("Send error:", e);
       setSent(p => ({ ...p, [idx]: "error" }));
-      saveLeadLocally(roofer, "error");
+      saveLeadLocally(roofer, "error", "error");
     }
     setSending(p => ({ ...p, [idx]: false }));
   }

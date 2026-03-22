@@ -8,6 +8,12 @@ const SITEMAP_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://roofrfq.ca/blog/flat-roof-replacement-cost-ontario</loc>
+    <lastmod>2026-03-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://roofrfq.ca/flat-roof-replacement-toronto</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>

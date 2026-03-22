@@ -926,6 +926,9 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [sent, setSent] = useState({});
+  const [sending, setSending] = useState({});
+  const [scraping, setScraping] = useState(false);
+  const [scrapeCount, setScrapeCount] = useState({ done: 0, found: 0, total: 0 });
 
   const mapDiv = useRef(null);
 
@@ -996,6 +999,9 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
       } catch(regErr) { console.log("Registered roofer fetch skipped:", regErr); }
 
       setRoofers(finalList.slice(0, 20));
+
+      // After loading, scrape emails for roofers that only have a website
+      scrapeEmails(finalList.slice(0, 20));
     } catch (e) {
       console.error("Places error:", e);
       setErr("Couldn't search automatically. Make sure Maps JavaScript API and Places API are enabled.");
@@ -1004,17 +1010,90 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
     setLoading(false);
   }
 
-  /* ─── SEND LEAD: Email-based roofers ─── */
-  function handleSendEmail(roofer, idx) {
-    const subject = encodeURIComponent(`Flat Roof Replacement Inquiry — ${address} | via RoofRFQ`);
-    const body = encodeURIComponent(buildEmailBody({ customer, address, area, survey, budget }));
-    const bcc = encodeURIComponent(ROOFRFQ_EMAIL);
-    const mailto = `mailto:${roofer.email}?bcc=${bcc}&subject=${subject}&body=${body}`;
-    window.open(mailto, "_self");
+  /* ─── SCRAPE: Find email addresses from roofer websites ─── */
+  async function scrapeEmails(rooferList) {
+    const needsScraping = rooferList
+      .map((r, i) => ({ roofer: r, idx: i }))
+      .filter(({ roofer }) => !roofer.email?.trim() && roofer.website?.trim());
 
-    // Track locally
-    saveLeadLocally({ customer, rooferName: roofer.name, address, area, budget, method: "email" });
-    setSent(p => ({ ...p, [idx]: "email" }));
+    if (needsScraping.length === 0) return;
+
+    setScraping(true);
+    setScrapeCount({ done: 0, found: 0, total: needsScraping.length });
+
+    // Scrape up to 3 at a time to avoid overwhelming the function
+    const batchSize = 3;
+    let done = 0, found = 0;
+
+    for (let i = 0; i < needsScraping.length; i += batchSize) {
+      const batch = needsScraping.slice(i, i + batchSize);
+
+      await Promise.all(batch.map(async ({ roofer, idx }) => {
+        try {
+          const res = await fetch(`/.netlify/functions/scrape-email?website=${encodeURIComponent(roofer.website)}`);
+          const data = await res.json();
+
+          if (data.success && data.email) {
+            found++;
+            // Update this specific roofer's email in state
+            setRoofers(prev => prev.map((r, j) =>
+              j === idx ? { ...r, email: data.email } : r
+            ));
+          }
+        } catch (scrapeErr) {
+          console.log(`Scrape failed for ${roofer.name}:`, scrapeErr);
+        }
+
+        done++;
+        setScrapeCount({ done, found, total: needsScraping.length });
+      }));
+    }
+
+    setScraping(false);
+  }
+
+  /* ─── SEND LEAD: Email-based roofers (auto-send via Netlify function) ─── */
+  function buildProjectData(roofer) {
+    return {
+      roofer: { name: roofer.name, email: roofer.email || "" },
+      customer: { name: customer.name, company: customer.company || "", email: customer.email, phone: customer.phone },
+      project: {
+        address,
+        area: fmt(area),
+        roofType: PRICING[survey.roofType]?.label || survey.roofType,
+        age: survey.age,
+        condition: COND_OPTS.find(c => c.v === survey.condition)?.l || survey.condition,
+        stories: survey.stories,
+        leaks: survey.leaks || "N/A",
+        equipment: (survey.equipment || []).join(", ") || "None",
+        notes: survey.notes || "",
+      },
+      budget: { low: fmtC(budget.low), high: fmtC(budget.high), perSqftLow: "$" + budget.sqLo, perSqftHigh: "$" + budget.sqHi },
+    };
+  }
+
+  async function handleSend(roofer, idx) {
+    setSending(p => ({ ...p, [idx]: true }));
+    try {
+      const payload = buildProjectData(roofer);
+      const res = await fetch("/.netlify/functions/send-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSent(p => ({ ...p, [idx]: "sent" }));
+        saveLeadLocally({ customer, rooferName: roofer.name, address, area, budget, method: "email-auto" });
+      } else {
+        throw new Error(data.error || "Send failed");
+      }
+    } catch (e) {
+      console.error("Send error:", e);
+      setSent(p => ({ ...p, [idx]: "error" }));
+      saveLeadLocally({ customer, rooferName: roofer.name, address, area, budget, method: "error" });
+    }
+    setSending(p => ({ ...p, [idx]: false }));
   }
 
   /* ─── SEND LEAD: Website/contact-form roofers (no email) ─── */
@@ -1044,7 +1123,8 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
     setSent(p => ({ ...p, [idx]: "website" }));
   }
 
-  const sentN = Object.values(sent).filter(v => v === "email" || v === "website").length;
+  const sentN = Object.values(sent).filter(v => v === "sent" || v === "website").length;
+  const errN = Object.values(sent).filter(v => v === "error").length;
 
   /* Determine which method each roofer gets */
   function getRooferMethod(r) {
@@ -1061,9 +1141,10 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
           Commercial Roofers Near You
         </h2>
         <p style={{fontFamily:"'DM Sans',sans-serif",color:T.textMd,fontSize:14,maxWidth:520,margin:"0 auto",lineHeight:1.6}}>
-          Click <strong>"Send Lead"</strong> to email your project details directly to the contractor. For companies with only a contact form, we'll open their website and copy your info to paste in.
+          Top commercial roofing companies in your area. Click <strong>"Send Lead"</strong> and we'll email them your project details from RoofRFQ. For companies with only a contact form, we'll open their website and copy your info to paste in.
         </p>
         {sentN > 0 && <div style={{marginTop:10}}><Badge color={T.green} bg={T.greenLt}>✓ {sentN} lead{sentN>1?"s":""} sent</Badge></div>}
+        {errN > 0 && <div style={{marginTop:6}}><Badge color={T.red} bg={T.redLt}>{errN} failed — click Retry</Badge></div>}
       </div>
 
       {loading ? (
@@ -1075,6 +1156,24 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
         <>
           {err && <div style={{background:T.goldLt,border:`1px solid ${T.gold}`,borderRadius:12,padding:14,marginBottom:16,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#92400e"}}>{err}</div>}
 
+          {/* Scraping progress indicator */}
+          {scraping && (
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,marginBottom:12}}>
+              <div className="spin" style={{width:14,height:14,borderRadius:"50%",border:"2px solid #16a34a",borderTopColor:"transparent",flexShrink:0}}/>
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#166534"}}>
+                Finding contact emails… {scrapeCount.done}/{scrapeCount.total} websites checked{scrapeCount.found > 0 ? ` · ${scrapeCount.found} found` : ""}
+              </span>
+            </div>
+          )}
+          {!scraping && scrapeCount.total > 0 && scrapeCount.found > 0 && (
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,marginBottom:12}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#166534"}}>
+                Found {scrapeCount.found} email{scrapeCount.found>1?"s":""} from {scrapeCount.total} websites — these companies can now receive leads directly
+              </span>
+            </div>
+          )}
+
           {roofers.length === 0 && !err && (
             <div style={{textAlign:"center",padding:40}}>
               <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:T.textMd}}>No roofers found in this area. Try a broader search area.</p>
@@ -1084,10 +1183,11 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {roofers.map((r,i) => {
               const method = getRooferMethod(r);
-              const isSent = !!sent[i];
+              const isSent = sent[i] === "sent" || sent[i] === "website";
+              const isErr = sent[i] === "error";
 
               return (
-                <div key={i} style={{background:r.featured?"#f8faff":T.white,borderRadius:14,padding:"16px 20px",border:`1.5px solid ${isSent?T.green:r.featured?T.accent:T.border}`,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",transition:"border-color .2s"}}>
+                <div key={i} style={{background:r.featured?"#f8faff":T.white,borderRadius:14,padding:"16px 20px",border:`1.5px solid ${isSent?T.green:isErr?T.red:r.featured?T.accent:T.border}`,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",transition:"border-color .2s"}}>
                   <div style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:T.surface2,fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,color:T.accent,fontSize:14,flexShrink:0}}>
                     {i+1}
                   </div>
@@ -1130,15 +1230,21 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
                     </div>
                   </div>
                   <div style={{flexShrink:0}}>
-                    {isSent ? (
+                    {sent[i] === "sent" ? (
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:T.green,display:"flex",alignItems:"center",gap:5,padding:"10px 16px"}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        {sent[i] === "email" ? "Email Opened" : "Website Opened"}
+                        Lead Sent
                       </span>
+                    ) : sent[i] === "website" ? (
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:T.green,display:"flex",alignItems:"center",gap:5,padding:"10px 16px"}}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Website Opened
+                      </span>
+                    ) : sent[i] === "error" && method === "email" ? (
+                      <button className="rfq-btn-out" style={{borderColor:T.red,color:T.red,fontSize:12,padding:"8px 14px"}} disabled={sending[i]} onClick={() => handleSend(r,i)}>Retry</button>
                     ) : method === "email" ? (
-                      <button className="rfq-btn" style={{fontSize:13,padding:"10px 20px"}} onClick={() => handleSendEmail(r,i)}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        Send Lead
+                      <button className="rfq-btn" style={{fontSize:13,padding:"10px 20px"}} disabled={sending[i]} onClick={() => handleSend(r,i)}>
+                        {sending[i] ? <><div className="spin" style={{width:14,height:14,borderRadius:"50%",border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",display:"inline-block"}}/> Sending…</> : "Send Lead"}
                       </button>
                     ) : method === "website" ? (
                       <button className="rfq-btn-web" onClick={() => handleSendWebsite(r,i)}>
@@ -1156,23 +1262,16 @@ function RooferStep({ address, coords, budget, customer, survey, area }) {
 
           {/* Send to all — only for email-based roofers */}
           {(() => {
-            const emailRoofers = roofers.filter((r,i) => getRooferMethod(r) === "email" && !sent[i]);
+            const emailRoofers = roofers.filter((r,i) => getRooferMethod(r) === "email" && !sent[i] && !sending[i]);
             if (emailRoofers.length <= 1) return null;
             return (
               <div style={{marginTop:24,textAlign:"center"}}>
                 <button className="rfq-btn rfq-btn-gold" style={{padding:"14px 36px",borderRadius:14}}
-                  onClick={() => {
-                    roofers.forEach((r,i) => {
-                      if (getRooferMethod(r) === "email" && !sent[i]) {
-                        // Stagger mailto opens so they don't all collide
-                        setTimeout(() => handleSendEmail(r,i), i * 600);
-                      }
-                    });
-                  }}>
-                  Send Lead to All {emailRoofers.length} Companies with Email
+                  onClick={() => roofers.forEach((r,i) => { if (getRooferMethod(r) === "email" && !sent[i] && !sending[i]) handleSend(r,i); })}>
+                  Send Lead to All {emailRoofers.length} Companies
                 </button>
                 <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:T.textLt,marginTop:10}}>
-                  Opens your email client with pre-filled project details for each company · hello@roofrfq.ca is BCC'd on every lead
+                  Each company will be emailed your project details from hello@roofrfq.ca
                 </p>
               </div>
             );

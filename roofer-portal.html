@@ -1,39 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>RoofRFQ — Roofer Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#fafaf9;font-family:'DM Sans',sans-serif;color:#1c1917;min-height:100vh}
     .wrap{max-width:720px;margin:0 auto;padding:32px 24px}
-    .logo{display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;text-decoration:none}
+    a.logo{display:inline-flex;align-items:center;gap:8px;margin-bottom:32px;text-decoration:none}
     .logo svg{width:28px;height:28px}
     .logo span{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;color:#1c1917}
     .logo .a{color:#1e3a5f}
-    h1{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+    h1{font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
     h2{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;margin-bottom:12px}
-    p.sub{color:#57534e;font-size:15px;line-height:1.6;margin-bottom:28px}
+    h3{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px}
+    p.sub{color:#57534e;font-size:15px;line-height:1.6;margin-bottom:24px}
     .card{background:#fff;border:1.5px solid #e7e5e4;border-radius:16px;padding:28px;margin-bottom:20px}
     .card.accent{border-color:#1e3a5f;background:#f8faff}
     .card.gold{border-color:#ca8a04;background:#fffbeb}
     .card.green{border-color:#16a34a;background:#f0fdf4}
+    label{font-size:13px;font-weight:600;color:#57534e;display:block;margin-bottom:6px}
     .input{width:100%;background:#fff;border:1.5px solid #e7e5e4;border-radius:12px;padding:14px 16px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
     .input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+    .input::placeholder{color:#a8a29e}
+    select.input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2378716c' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;cursor:pointer}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row>*{flex:1;min-width:180px}
+    .field{margin-bottom:16px}
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#1e3a5f;color:#fff;border:none;border-radius:12px;padding:14px 32px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;text-decoration:none}
     .btn:hover{background:#162d4a;transform:translateY(-1px);box-shadow:0 4px 16px rgba(30,58,95,.2)}
     .btn.gold{background:linear-gradient(135deg,#ca8a04,#a16207)}
     .btn.gold:hover{box-shadow:0 4px 16px rgba(202,138,4,.3)}
     .btn.outline{background:transparent;color:#1e3a5f;border:1.5px solid #1e3a5f}
     .btn.outline:hover{background:#f0f7ff}
+    .btn.sm{padding:10px 20px;font-size:13px}
     .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
     .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-    .badge.green{color:#166534;background:#dcfce7}
-    .badge.blue{color:#1e3a5f;background:#dbeafe}
-    .badge.amber{color:#92400e;background:#fef3c7}
-    .badge.red{color:#dc2626;background:#fef2f2}
+    .badge.green{color:#166534;background:#dcfce7}.badge.blue{color:#1e3a5f;background:#dbeafe}
+    .badge.amber{color:#92400e;background:#fef3c7}.badge.red{color:#dc2626;background:#fef2f2}
     .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:24px}
     .stat{text-align:center;padding:16px;background:#fff;border-radius:12px;border:1px solid #e7e5e4}
     .stat-n{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#1e3a5f}
@@ -43,18 +48,21 @@
     .plan:hover{border-color:#1e3a5f}
     .plan.pop{border-color:#ca8a04;background:#fffbeb;position:relative}
     .plan-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#ca8a04;color:#fff;font-size:10px;font-weight:700;padding:3px 12px;border-radius:100px;white-space:nowrap;letter-spacing:.5px}
-    .plan h3{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px}
-    .plan .price{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:#1e3a5f;margin-bottom:4px}
+    .plan h3{margin-bottom:8px}.plan .price{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:#1e3a5f;margin-bottom:4px}
     .plan .price small{font-size:14px;font-weight:500;color:#57534e}
     .plan .desc{font-size:13px;color:#57534e;margin-bottom:16px;line-height:1.5}
     .plan ul{list-style:none;text-align:left;margin-bottom:20px}
-    .plan li{font-size:13px;padding:4px 0;color:#1c1917}
-    .plan li::before{content:"✓ ";color:#16a34a;font-weight:700}
+    .plan li{font-size:13px;padding:4px 0;color:#1c1917}.plan li::before{content:"✓ ";color:#16a34a;font-weight:700}
     .hidden{display:none}
-    .loading{text-align:center;padding:40px;color:#a8a29e}
     .spin{width:24px;height:24px;border-radius:50%;border:3px solid #e7e5e4;border-top-color:#1e3a5f;animation:spin .8s linear infinite;margin:0 auto 12px}
     @keyframes spin{to{transform:rotate(360deg)}}
-    @media(max-width:640px){.plans,.grid{grid-template-columns:1fr}}
+    .success-msg{background:#dcfce7;border:1.5px solid #16a34a;border-radius:12px;padding:16px 20px;margin-bottom:20px;color:#166534;font-weight:500}
+    .error-msg{background:#fef2f2;border:1.5px solid #dc2626;border-radius:12px;padding:16px 20px;margin-bottom:20px;color:#dc2626;font-weight:500}
+    .company-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:#f0f7ff;border:1.5px solid #1e3a5f;border-radius:12px;margin-bottom:16px}
+    .company-badge strong{font-size:15px;color:#1e3a5f}
+    .company-badge span{font-size:12px;color:#57534e}
+    .divider{border:none;border-top:1px solid #e7e5e4;margin:24px 0}
+    @media(max-width:640px){.plans,.grid{grid-template-columns:1fr}.row>*{min-width:100%}}
   </style>
 </head>
 <body>
@@ -64,241 +72,382 @@
     <span>Roof<span class="a">RFQ</span></span>
   </a>
 
-  <!-- LOGIN -->
-  <div id="login">
+  <!-- STEP 1: EMAIL -->
+  <div id="loginView">
     <h1>Roofer Portal</h1>
-    <p class="sub">Enter your company email to view your leads, manage your subscription, and unlock new opportunities.</p>
+    <p class="sub">Enter your work email to access your leads, manage your subscription, or register your roofing company to start receiving leads.</p>
     <div class="card">
-      <label style="font-size:13px;font-weight:600;color:#57534e;display:block;margin-bottom:6px">Company Email</label>
+      <label>Your Email Address</label>
       <input class="input" id="emailInput" type="email" placeholder="estimating@yourcompany.com">
-      <button class="btn" style="width:100%;margin-top:16px" onclick="loadPortal()">Access Portal</button>
+      <button class="btn" style="width:100%;margin-top:16px" onclick="checkEmail()">Continue</button>
     </div>
   </div>
 
-  <!-- PORTAL -->
-  <div id="portal" class="hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
-      <div>
-        <h1 style="margin-bottom:4px">Your Dashboard</h1>
-        <p style="color:#57534e;font-size:14px" id="portalEmail"></p>
+  <!-- STEP 2: REGISTRATION (new users) -->
+  <div id="registerView" class="hidden">
+    <h1>Register Your Company</h1>
+    <p class="sub">Set up your roofing company profile to start receiving leads from building owners in your area. Your first lead is free.</p>
+    <div id="regMsg"></div>
+    <div class="card">
+      <h3>Company Information</h3>
+      <div class="field"><label>Company Name *</label><input class="input" id="regCompany" placeholder="ABC Roofing Inc."></div>
+      <div class="field"><label>Contact Name</label><input class="input" id="regContact" placeholder="John Smith"></div>
+      <div class="row">
+        <div class="field"><label>Street Address *</label><input class="input" id="regAddress" placeholder="123 Main Street"></div>
       </div>
+      <div class="row">
+        <div class="field"><label>City *</label><input class="input" id="regCity" placeholder="Toronto"></div>
+        <div class="field"><label>Province</label>
+          <select class="input" id="regProvince">
+            <option value="ON">Ontario</option><option value="BC">British Columbia</option><option value="AB">Alberta</option>
+            <option value="QC">Quebec</option><option value="MB">Manitoba</option><option value="SK">Saskatchewan</option>
+            <option value="NS">Nova Scotia</option><option value="NB">New Brunswick</option><option value="NL">Newfoundland</option>
+            <option value="PE">Prince Edward Island</option>
+          </select>
+        </div>
+        <div class="field"><label>Postal Code</label><input class="input" id="regPostal" placeholder="M5V 2T6" style="text-transform:uppercase"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Phone</label><input class="input" id="regPhone" type="tel" placeholder="(416) 555-1234"></div>
+        <div class="field"><label>Website</label><input class="input" id="regWebsite" type="url" placeholder="https://abcroofing.ca"></div>
+      </div>
+      <div class="field">
+        <label>Service Radius (km)</label>
+        <select class="input" id="regRadius">
+          <option value="50">50 km</option><option value="100" selected>100 km</option><option value="150">150 km</option><option value="200">200 km</option><option value="300">300 km</option><option value="500">All of Ontario / Province-wide</option>
+        </select>
+      </div>
+
+      <hr class="divider">
+      <div style="background:#f0f7ff;border-radius:12px;padding:16px;margin-bottom:20px">
+        <p style="font-size:13px;color:#1e3a5f;line-height:1.6;margin:0">
+          <strong>How it works:</strong> When a building owner near you requests a flat roof replacement quote, we'll email you the lead details. Your first lead is <strong>free</strong>. After that, unlock individual leads for <strong>$100 each</strong> or subscribe for <strong>unlimited leads starting at $200/mo</strong>.
+        </p>
+      </div>
+      <button class="btn" style="width:100%" onclick="register()" id="regBtn">Register My Company</button>
+    </div>
+    <p style="text-align:center;font-size:13px;color:#a8a29e;cursor:pointer" onclick="showLogin()">← Use a different email</p>
+  </div>
+
+  <!-- STEP 3: DASHBOARD (existing users) -->
+  <div id="dashView" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:12px">
+      <h1 style="margin-bottom:0">Dashboard</h1>
       <span class="badge" id="statusBadge"></span>
     </div>
-
+    <div id="companyInfo" style="margin-bottom:20px"></div>
+    <div id="dashMsg"></div>
     <div class="grid" id="statsGrid"></div>
 
-    <!-- STATUS CARDS -->
+    <!-- Status cards -->
     <div id="freeCard" class="card green hidden">
       <h2>🎁 Your First Lead is Free</h2>
-      <p style="color:#57534e;font-size:14px;line-height:1.6">When a building owner requests a quote from your company, you'll receive the full lead details at no charge. After your first free lead, you'll need a subscription or per-lead unlock to access future leads.</p>
+      <p style="color:#166534;font-size:14px;line-height:1.6">When a building owner requests a quote near you, you'll receive the full lead details at no charge. After your first free lead, choose a subscription or pay per lead.</p>
     </div>
-
     <div id="subCard" class="card accent hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <h2 style="margin-bottom:4px">Active Subscription</h2>
-          <p style="color:#57534e;font-size:14px" id="subDetails"></p>
+        <div><h2 style="margin-bottom:4px">Active Subscription</h2><p style="color:#57534e;font-size:14px" id="subDetails"></p></div>
+        <button class="btn outline sm" onclick="manageSubscription()">Manage</button>
+      </div>
+    </div>
+    <div id="trialCard" class="card gold hidden">
+      <h2>🎉 Free Trial Active</h2>
+      <p style="color:#92400e;font-size:14px;line-height:1.6" id="trialDetails"></p>
+    </div>
+
+    <!-- Edit company -->
+    <div class="card" id="editSection">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="margin-bottom:0">Company Profile</h3>
+        <button class="btn outline sm" onclick="toggleEdit()" id="editToggle">Edit</button>
+      </div>
+      <div id="companyDisplay"></div>
+      <div id="companyEdit" class="hidden">
+        <div class="field"><label>Company Name</label><input class="input" id="editCompany"></div>
+        <div class="field"><label>Contact Name</label><input class="input" id="editContact"></div>
+        <div class="row">
+          <div class="field"><label>Phone</label><input class="input" id="editPhone" type="tel"></div>
+          <div class="field"><label>Website</label><input class="input" id="editWebsite"></div>
         </div>
-        <button class="btn outline" onclick="manageSubscription()">Manage Subscription</button>
+        <div class="field"><label>Service Radius</label>
+          <select class="input" id="editRadius"><option value="50">50 km</option><option value="100">100 km</option><option value="150">150 km</option><option value="200">200 km</option><option value="300">300 km</option><option value="500">Province-wide</option></select>
+        </div>
+        <button class="btn sm" style="margin-top:8px" onclick="saveEdit()">Save Changes</button>
       </div>
     </div>
 
-    <div id="trialCard" class="card gold hidden">
-      <h2>🎉 Free Trial Active</h2>
-      <p style="color:#57534e;font-size:14px;line-height:1.6" id="trialDetails"></p>
+    <!-- Linked emails -->
+    <div class="card">
+      <h3>Linked Email Addresses</h3>
+      <p style="font-size:13px;color:#57534e;margin-bottom:12px;line-height:1.5">Each email registered under your company address receives leads independently and requires its own subscription or per-lead payment.</p>
+      <div id="linkedEmails"></div>
     </div>
 
-    <!-- PRICING -->
+    <!-- Pricing -->
     <div id="pricingSection">
-      <h2 style="margin-top:24px">Unlock More Leads</h2>
-      <p class="sub">Choose how you want to access commercial roofing leads.</p>
-
+      <h2 style="margin-top:24px">Get More Leads</h2>
       <div class="plans">
         <div class="plan">
           <h3>Pay Per Lead</h3>
           <div class="price">$100 <small>/ lead</small></div>
-          <div class="desc">Unlock individual leads as they come in</div>
-          <ul>
-            <li>Full customer details</li>
-            <li>Project specs & budget</li>
-            <li>No commitment</li>
-          </ul>
-          <p style="font-size:12px;color:#a8a29e;margin-top:8px">Available from blurred lead emails</p>
+          <div class="desc">Unlock individual leads</div>
+          <ul><li>Full customer details</li><li>Project specs & budget</li><li>No commitment</li></ul>
+          <p style="font-size:12px;color:#a8a29e;margin-top:8px">Pay from blurred lead emails</p>
         </div>
-
         <div class="plan pop">
           <div class="plan-tag">MOST POPULAR</div>
           <h3>Monthly</h3>
           <div class="price">$299 <small>/ mo</small></div>
           <div class="desc">Unlimited leads in your area</div>
-          <ul>
-            <li>1-month free trial</li>
-            <li>All leads fully unlocked</li>
-            <li>Cancel anytime</li>
-            <li>Priority support</li>
-          </ul>
+          <ul><li>1-month free trial</li><li>All leads unlocked</li><li>Cancel anytime</li></ul>
           <button class="btn gold" style="width:100%" onclick="subscribe('monthly')">Start Free Trial</button>
         </div>
-
         <div class="plan">
           <h3>Annual</h3>
           <div class="price">$2,400 <small>/ yr</small></div>
-          <div class="desc">Best value — save $1,188/year</div>
-          <ul>
-            <li>1-month free trial</li>
-            <li>All leads fully unlocked</li>
-            <li>$200/mo effective rate</li>
-            <li>Priority support</li>
-          </ul>
+          <div class="desc">Save $1,188/year</div>
+          <ul><li>1-month free trial</li><li>All leads unlocked</li><li>$200/mo effective</li></ul>
           <button class="btn" style="width:100%" onclick="subscribe('annual')">Start Free Trial</button>
         </div>
       </div>
     </div>
 
-    <!-- PAYMENT HISTORY -->
-    <div id="paymentsSection" class="hidden">
-      <h2 style="margin-top:24px">Payment History</h2>
-      <div id="paymentsList"></div>
-    </div>
+    <p style="text-align:center;font-size:13px;color:#a8a29e;margin-top:16px;cursor:pointer" onclick="showLogin()">← Switch account</p>
   </div>
 
-  <div id="loadingEl" class="loading hidden">
-    <div class="spin"></div>
-    <p>Loading your portal...</p>
-  </div>
+  <!-- LOADING -->
+  <div id="loadingEl" class="hidden" style="text-align:center;padding:60px"><div class="spin"></div><p style="color:#a8a29e">Loading your portal...</p></div>
 </div>
 
 <script>
 let currentEmail = "";
+let currentData = null;
 
-function getParams() {
-  const p = new URLSearchParams(window.location.search);
-  return { email: p.get("email"), action: p.get("action"), lead: p.get("lead") };
-}
+function show(id) { ["loginView","registerView","dashView","loadingEl"].forEach(v => document.getElementById(v).classList.toggle("hidden", v !== id)); }
+function showLogin() { show("loginView"); }
 
-async function loadPortal(email) {
-  const e = email || document.getElementById("emailInput")?.value?.trim();
-  if (!e) return alert("Please enter your email.");
-  currentEmail = e;
-
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("portal").classList.add("hidden");
-  document.getElementById("loadingEl").classList.remove("hidden");
+async function checkEmail() {
+  const email = document.getElementById("emailInput").value.trim();
+  if (!email || !email.includes("@")) return alert("Please enter a valid email.");
+  currentEmail = email;
+  show("loadingEl");
 
   try {
-    const r = await fetch(`/.netlify/functions/roofer-status?email=${encodeURIComponent(e)}`);
+    const r = await fetch(`/.netlify/functions/roofer-status?email=${encodeURIComponent(email)}`);
     const data = await r.json();
-    renderPortal(data, e);
+    currentData = data;
+
+    if (data.status === "new" || data.status === "no_stripe" || (!data.customer?.name && !data.freeUsed)) {
+      // New user → show registration
+      show("registerView");
+    } else {
+      // Existing user → show dashboard
+      renderDashboard(data, email);
+    }
   } catch(err) {
     console.error(err);
-    alert("Error loading portal. Please try again.");
-    document.getElementById("login").classList.remove("hidden");
-    document.getElementById("loadingEl").classList.add("hidden");
+    // If status check fails, show registration anyway
+    show("registerView");
   }
 }
 
-function renderPortal(data, email) {
-  document.getElementById("loadingEl").classList.add("hidden");
-  document.getElementById("portal").classList.remove("hidden");
-  document.getElementById("portalEmail").textContent = email;
+async function register() {
+  const btn = document.getElementById("regBtn");
+  btn.disabled = true; btn.textContent = "Registering...";
+  document.getElementById("regMsg").innerHTML = "";
+
+  const payload = {
+    email: currentEmail,
+    companyName: document.getElementById("regCompany").value.trim(),
+    companyAddress: document.getElementById("regAddress").value.trim(),
+    companyCity: document.getElementById("regCity").value.trim(),
+    companyProvince: document.getElementById("regProvince").value,
+    companyPostal: document.getElementById("regPostal").value.trim(),
+    companyPhone: document.getElementById("regPhone").value.trim(),
+    companyWebsite: document.getElementById("regWebsite").value.trim(),
+    contactName: document.getElementById("regContact").value.trim(),
+    serviceRadius: document.getElementById("regRadius").value,
+  };
+
+  if (!payload.companyName || !payload.companyAddress || !payload.companyCity) {
+    document.getElementById("regMsg").innerHTML = '<div class="error-msg">Please fill in company name, address, and city.</div>';
+    btn.disabled = false; btn.textContent = "Register My Company"; return;
+  }
+
+  try {
+    const r = await fetch("/.netlify/functions/register-roofer", {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (data.success) {
+      // Reload as dashboard
+      show("loadingEl");
+      setTimeout(() => checkEmail(), 1000);
+    } else {
+      document.getElementById("regMsg").innerHTML = `<div class="error-msg">${data.error || "Registration failed."}</div>`;
+      btn.disabled = false; btn.textContent = "Register My Company";
+    }
+  } catch(err) {
+    document.getElementById("regMsg").innerHTML = '<div class="error-msg">Registration failed. Please try again.</div>';
+    btn.disabled = false; btn.textContent = "Register My Company";
+  }
+}
+
+function renderDashboard(data, email) {
+  show("dashView");
+  document.getElementById("dashMsg").innerHTML = "";
 
   // Status badge
   const badge = document.getElementById("statusBadge");
-  const statusMap = {
-    subscribed: { text: "SUBSCRIBED", cls: "green" },
-    trial: { text: "FREE TRIAL", cls: "amber" },
-    free: { text: "FREE LEAD AVAILABLE", cls: "blue" },
-    new: { text: "FREE LEAD AVAILABLE", cls: "blue" },
-    paywall: { text: "SUBSCRIPTION REQUIRED", cls: "amber" },
-    no_stripe: { text: "NOT SET UP", cls: "red" },
-  };
-  const s = statusMap[data.status] || statusMap.no_stripe;
-  badge.textContent = s.text;
-  badge.className = `badge ${s.cls}`;
+  const map = { subscribed:{t:"SUBSCRIBED",c:"green"},trial:{t:"FREE TRIAL",c:"amber"},free:{t:"1 FREE LEAD",c:"blue"},paywall:{t:"SUBSCRIPTION NEEDED",c:"amber"},new:{t:"NEW",c:"blue"},no_stripe:{t:"NEW",c:"blue"} };
+  const s = map[data.status] || map.new;
+  badge.textContent = s.t; badge.className = `badge ${s.c}`;
+
+  // Company info header
+  const ci = document.getElementById("companyInfo");
+  if (data.company?.name) {
+    ci.innerHTML = `<div class="company-badge"><strong>${data.company.name}</strong><span>${email}</span></div>`;
+  } else {
+    ci.innerHTML = `<p style="color:#57534e;font-size:14px">${email}</p>`;
+  }
 
   // Stats
   document.getElementById("statsGrid").innerHTML = `
-    <div class="stat"><div class="stat-n">${data.lockedLeads || 0}</div><div class="stat-l">Pending Leads</div></div>
-    <div class="stat"><div class="stat-n">${data.payments?.length || 0}</div><div class="stat-l">Payments</div></div>
-    <div class="stat"><div class="stat-n">${data.payments?.reduce((s,p) => s + (p.status === "succeeded" ? p.amount : 0), 0)?.toLocaleString("en-US", {style:"currency",currency:"CAD",maximumFractionDigits:0}) || "$0"}</div><div class="stat-l">Total Spent</div></div>
+    <div class="stat"><div class="stat-n">${data.lockedLeads||0}</div><div class="stat-l">Pending Leads</div></div>
+    <div class="stat"><div class="stat-n">${data.payments?.length||0}</div><div class="stat-l">Payments</div></div>
+    <div class="stat"><div class="stat-n">${data.payments?.reduce((s,p)=>s+(p.status==="succeeded"?p.amount:0),0)?.toLocaleString("en-CA",{style:"currency",currency:"CAD",maximumFractionDigits:0})||"$0"}</div><div class="stat-l">Total Spent</div></div>
   `;
 
-  // Show relevant cards
-  document.getElementById("freeCard").classList.toggle("hidden", data.freeUsed || data.status === "subscribed" || data.status === "trial");
-  document.getElementById("subCard").classList.toggle("hidden", data.status !== "subscribed");
-  document.getElementById("trialCard").classList.toggle("hidden", data.status !== "trial");
+  // Status cards
+  document.getElementById("freeCard").classList.toggle("hidden", data.freeUsed || data.status==="subscribed" || data.status==="trial");
+  document.getElementById("subCard").classList.toggle("hidden", data.status!=="subscribed");
+  document.getElementById("trialCard").classList.toggle("hidden", data.status!=="trial");
+  document.getElementById("pricingSection").classList.toggle("hidden", data.status==="subscribed" || data.status==="trial");
 
   if (data.subscription) {
-    const plan = data.subscription.plan === "annual" ? "$2,400/year" : "$299/month";
+    const plan = data.subscription.plan==="annual" ? "$2,400/year" : "$299/month";
     document.getElementById("subDetails").textContent = `${plan} · All leads unlocked automatically`;
     if (data.subscription.trialEnd) {
-      const trialEnd = new Date(data.subscription.trialEnd * 1000).toLocaleDateString();
-      document.getElementById("trialDetails").innerHTML = `Your 30-day free trial is active! All leads are fully unlocked. Your first payment begins on <strong>${trialEnd}</strong>.`;
+      document.getElementById("trialDetails").innerHTML = `Your 30-day free trial is active. All leads unlocked. First charge: <strong>${new Date(data.subscription.trialEnd*1000).toLocaleDateString()}</strong>.`;
     }
   }
 
-  // Show/hide pricing
-  document.getElementById("pricingSection").classList.toggle("hidden", data.status === "subscribed" || data.status === "trial");
-
-  // Payments
-  if (data.payments?.length) {
-    document.getElementById("paymentsSection").classList.remove("hidden");
-    document.getElementById("paymentsList").innerHTML = `<div style="background:#fff;border:1px solid #e7e5e4;border-radius:12px;overflow:hidden">
-      ${data.payments.map(p => `<div style="padding:12px 16px;border-bottom:1px solid #f5f5f4;display:flex;justify-content:space-between;align-items:center">
-        <div><span style="font-weight:600">$${p.amount}</span> <span style="color:#a8a29e;font-size:12px">${p.currency.toUpperCase()}</span></div>
-        <div style="font-size:13px;color:#57534e">${new Date(p.date).toLocaleDateString()}</div>
-        <span class="badge ${p.status==='succeeded'?'green':'red'}">${p.status}</span>
-      </div>`).join("")}
-    </div>`;
+  // Company display
+  if (data.registration) {
+    const reg = data.registration;
+    document.getElementById("companyDisplay").innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;font-size:14px">
+        <div><span style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block">Company</span>${reg.company_name||"—"}</div>
+        <div><span style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block">Contact</span>${reg.contact_name||"—"}</div>
+        <div><span style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block">Address</span>${reg.company_address||"—"}</div>
+        <div><span style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block">Phone</span>${reg.company_phone||"—"}</div>
+        <div><span style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block">Website</span>${reg.company_website||"—"}</div>
+        <div><span style="color:#a8a29e;font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block">Service Radius</span>${reg.service_radius_km||100} km</div>
+      </div>`;
+    document.getElementById("editCompany").value = reg.company_name || "";
+    document.getElementById("editContact").value = reg.contact_name || "";
+    document.getElementById("editPhone").value = reg.company_phone || "";
+    document.getElementById("editWebsite").value = reg.company_website || "";
+    document.getElementById("editRadius").value = reg.service_radius_km || "100";
+  } else {
+    document.getElementById("companyDisplay").innerHTML = `<p style="color:#a8a29e;font-size:14px">No company details on file. <a href="#" onclick="show('registerView');return false" style="color:#1e3a5f;font-weight:600">Register now →</a></p>`;
   }
+
+  // Linked emails
+  document.getElementById("linkedEmails").innerHTML = `
+    <div style="background:#f9fafb;border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+      <div><strong style="font-size:14px">${email}</strong><br><span style="font-size:12px;color:#57534e">This account</span></div>
+      <span class="badge ${s.c}">${s.t}</span>
+    </div>
+    <p style="font-size:12px;color:#a8a29e;margin-top:10px;line-height:1.5">To add another estimator from your company, have them visit this portal and register with the same company address. Each email manages its own subscription independently.</p>
+  `;
+
+  // URL params
+  const p = new URLSearchParams(window.location.search);
+  if (p.get("subscribed")) {
+    document.getElementById("dashMsg").innerHTML = '<div class="success-msg">🎉 Subscription activated! Your 30-day free trial has started. All leads will now be fully unlocked.</div>';
+  }
+  if (p.get("unlocked")) {
+    document.getElementById("dashMsg").innerHTML = '<div class="success-msg">🔓 Lead unlocked! Full details have been sent to your email.</div>';
+  }
+}
+
+function toggleEdit() {
+  const ed = document.getElementById("companyEdit");
+  const di = document.getElementById("companyDisplay");
+  const btn = document.getElementById("editToggle");
+  if (ed.classList.contains("hidden")) { ed.classList.remove("hidden"); di.classList.add("hidden"); btn.textContent = "Cancel"; }
+  else { ed.classList.add("hidden"); di.classList.remove("hidden"); btn.textContent = "Edit"; }
+}
+
+async function saveEdit() {
+  try {
+    const r = await fetch("/.netlify/functions/register-roofer", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        email: currentEmail,
+        companyName: document.getElementById("editCompany").value.trim(),
+        companyAddress: currentData?.registration?.company_address?.split(",")[0]?.trim() || "",
+        companyCity: currentData?.registration?.company_city || "",
+        companyProvince: currentData?.registration?.company_province || "ON",
+        companyPhone: document.getElementById("editPhone").value.trim(),
+        companyWebsite: document.getElementById("editWebsite").value.trim(),
+        contactName: document.getElementById("editContact").value.trim(),
+        serviceRadius: document.getElementById("editRadius").value,
+      }),
+    });
+    const data = await r.json();
+    if (data.success) { show("loadingEl"); setTimeout(() => checkEmail(), 500); }
+    else alert(data.error || "Update failed.");
+  } catch { alert("Update failed."); }
 }
 
 async function subscribe(plan) {
   if (!currentEmail) return;
   try {
     const r = await fetch("/.netlify/functions/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: `subscribe_${plan}`, email: currentEmail }),
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ action:`subscribe_${plan}`, email:currentEmail }),
     });
     const data = await r.json();
-    if (data.url) window.location.href = data.url;
-    else alert(data.error || "Could not create checkout session.");
-  } catch(err) { alert("Error creating checkout. Please try again."); }
+    if (data.url) window.location.href = data.url; else alert(data.error || "Could not start checkout.");
+  } catch { alert("Error starting checkout."); }
 }
 
 async function manageSubscription() {
   if (!currentEmail) return;
   try {
     const r = await fetch("/.netlify/functions/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "portal", email: currentEmail }),
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ action:"portal", email:currentEmail }),
     });
     const data = await r.json();
     if (data.url) window.location.href = data.url;
-  } catch(err) { alert("Error opening portal."); }
+  } catch { alert("Error opening portal."); }
 }
 
-// Auto-load from URL params
+// Auto-load from URL
 window.addEventListener("DOMContentLoaded", () => {
-  const p = getParams();
-  if (p.email) {
-    document.getElementById("emailInput").value = p.email;
-    if (p.action === "unlock" && p.lead) {
-      // Redirect to Stripe checkout for lead unlock
+  const p = new URLSearchParams(window.location.search);
+  const email = p.get("email");
+  const action = p.get("action");
+  const lead = p.get("lead");
+
+  if (email) {
+    currentEmail = email;
+    document.getElementById("emailInput").value = email;
+    if (action === "unlock" && lead) {
+      show("loadingEl");
       fetch("/.netlify/functions/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "unlock", email: p.email, leadId: p.lead }),
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ action:"unlock", email, leadId:lead }),
       }).then(r => r.json()).then(data => {
-        if (data.url) window.location.href = data.url;
-        else loadPortal(p.email);
-      }).catch(() => loadPortal(p.email));
-    } else if (p.action === "subscribe") {
-      loadPortal(p.email);
+        if (data.url) window.location.href = data.url; else checkEmail();
+      }).catch(() => checkEmail());
+    } else if (action === "subscribe") {
+      checkEmail();
     } else {
-      loadPortal(p.email);
+      checkEmail();
     }
   }
 });

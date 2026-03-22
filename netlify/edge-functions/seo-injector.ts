@@ -1,12 +1,6 @@
 import type { Context, Config } from "@netlify/edge-functions";
 
-// ============================================================
-// RoofRFQ SEO & GEO Injector — Netlify Edge Function
-// Injects schema markup, meta tags, and structured data
-// into every HTML response before it reaches the browser.
-// ============================================================
-
-// ---------- SCHEMA MARKUP ----------
+const GA_ID = "G-JS5X88KCTR";
 
 const organizationSchema = JSON.stringify({
   "@context": "https://schema.org",
@@ -128,8 +122,6 @@ const speakableSchema = JSON.stringify({
   },
 });
 
-// ---------- PAGE-SPECIFIC META ----------
-
 interface PageMeta {
   title: string;
   description: string;
@@ -181,20 +173,14 @@ const pageMeta: Record<string, PageMeta> = {
   },
 };
 
-// ---------- BUILD INJECTION HTML ----------
-
 function buildHeadInjection(pathname: string): string {
   const meta = pageMeta[pathname] || pageMeta["/"];
 
   return `
 <!-- ===== RoofRFQ SEO Injector (Netlify Edge Function) ===== -->
-
-<!-- Primary Meta -->
 <meta name="description" content="${meta.description}">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <link rel="canonical" href="${meta.canonical}">
-
-<!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="RoofRFQ">
 <meta property="og:title" content="${meta.title}">
@@ -204,19 +190,17 @@ function buildHeadInjection(pathname: string): string {
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="en_CA">
-
-<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${meta.title}">
 <meta name="twitter:description" content="${meta.description}">
 <meta name="twitter:image" content="https://roofrfq.ca/og-image.jpg">
-
-<!-- Geo Tags -->
 <meta name="geo.region" content="CA-ON">
 <meta name="geo.placename" content="Toronto">
 <meta name="geo.position" content="43.6532;-79.3832">
 <meta name="ICBM" content="43.6532, -79.3832">
-
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');</script>
 <!-- ===== END SEO META ===== -->
 `;
 }
@@ -232,13 +216,8 @@ function buildBodyEndInjection(): string {
 `;
 }
 
-// ---------- EDGE FUNCTION ----------
-
 export default async (req: Request, context: Context) => {
-  // Get the original response
   const response = await context.next();
-
-  // Only modify HTML responses
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("text/html")) {
     return response;
@@ -248,21 +227,18 @@ export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
   const pathname = url.pathname.replace(/\/$/, "") || "/";
 
-  // Inject meta tags into <head>
   const headInjection = buildHeadInjection(pathname);
   if (html.includes("</head>")) {
     html = html.replace("</head>", `${headInjection}</head>`);
   }
 
-  // Inject schema markup before </body>
   const bodyInjection = buildBodyEndInjection();
   if (html.includes("</body>")) {
     html = html.replace("</body>", `${bodyInjection}</body>`);
   }
 
-  // Return modified response with original headers
   const newHeaders = new Headers(response.headers);
-  newHeaders.delete("content-length"); // Recalculate after modification
+  newHeaders.delete("content-length");
 
   return new Response(html, {
     status: response.status,
@@ -272,5 +248,20 @@ export default async (req: Request, context: Context) => {
 
 export const config: Config = {
   path: "/*",
-  excludedPath: ["/assets/*", "/_next/*", "/static/*", "/images/*", "/*.js", "/*.css", "/*.json", "/*.xml", "/*.txt", "/*.ico", "/*.png", "/*.jpg", "/*.svg", "/*.woff*"],
+  excludedPath: [
+    "/assets/*",
+    "/_next/*",
+    "/static/*",
+    "/images/*",
+    "/*.js",
+    "/*.css",
+    "/*.json",
+    "/*.xml",
+    "/*.txt",
+    "/*.ico",
+    "/*.png",
+    "/*.jpg",
+    "/*.svg",
+    "/*.woff*",
+  ],
 };

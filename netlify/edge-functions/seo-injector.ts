@@ -224,6 +224,13 @@ export default async (req: Request, context: Context) => {
   }
 
   let html = await response.text();
+
+  // Skip injection if the page already has static SEO meta tags
+  // (i.e., the static HTML files we pre-rendered for Googlebot)
+  if (html.includes('property="og:site_name"') || html.includes("application/ld+json")) {
+    return response;
+  }
+
   const url = new URL(req.url);
   const pathname = url.pathname.replace(/\/$/, "") || "/";
 

@@ -1,0 +1,117 @@
+[build]
+  publish = "."
+
+# Static files take priority over edge functions for SEO-critical files
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+# Contact form page
+[[redirects]]
+  from = "/contact"
+  to = "/contact.html"
+  status = 200
+
+# Contractors landing page
+[[redirects]]
+  from = "/contractors"
+  to = "/contractors.html"
+  status = 200
+
+# City pages (static HTML)
+[[redirects]]
+  from = "/flat-roof-replacement-toronto"
+  to = "/cities/toronto.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-vancouver"
+  to = "/cities/vancouver.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-calgary"
+  to = "/cities/calgary.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-ottawa"
+  to = "/cities/ottawa.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-montreal"
+  to = "/cities/montreal.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-edmonton"
+  to = "/cities/edmonton.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-winnipeg"
+  to = "/cities/winnipeg.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-hamilton"
+  to = "/cities/hamilton.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-mississauga"
+  to = "/cities/mississauga.html"
+  status = 200
+
+[[redirects]]
+  from = "/flat-roof-replacement-brampton"
+  to = "/cities/brampton.html"
+  status = 200
+
+# Blog posts (static HTML)
+[[redirects]]
+  from = "/blog/flat-roof-replacement-cost-ontario"
+  to = "/blog/flat-roof-replacement-cost-ontario.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/tpo-vs-epdm-vs-pvc"
+  to = "/blog/tpo-vs-epdm-vs-pvc.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/signs-flat-roof-needs-replacement"
+  to = "/blog/signs-flat-roof-needs-replacement.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/how-to-choose-flat-roof-contractor"
+  to = "/blog/how-to-choose-flat-roof-contractor.html"
+  status = 200
+
+[[redirects]]
+  from = "/blog/flat-roof-replacement-process"
+  to = "/blog/flat-roof-replacement-process.html"
+  status = 200
+
+# SPA fallback — must be LAST
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

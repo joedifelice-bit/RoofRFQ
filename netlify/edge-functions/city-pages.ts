@@ -355,17 +355,6 @@ export default async (req: Request, context: Context) => {
   return context.next();
 };
 
-export const config: Config = {
-  path: [
-    "/flat-roof-replacement-toronto",
-    "/flat-roof-replacement-vancouver",
-    "/flat-roof-replacement-calgary",
-    "/flat-roof-replacement-ottawa",
-    "/flat-roof-replacement-montreal",
-    "/flat-roof-replacement-edmonton",
-    "/flat-roof-replacement-winnipeg",
-    "/flat-roof-replacement-hamilton",
-    "/flat-roof-replacement-mississauga",
-    "/flat-roof-replacement-brampton",
-  ],
-};
+// Disabled: static HTML city pages now exist in /cities/*.html
+// Served via netlify.toml redirects. This edge function is kept as a reference only.
+export const config: Config = { path: [] };

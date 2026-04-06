@@ -380,4 +380,6 @@ export default async (req: Request, context: Context) => {
   return context.next();
 };
 
-export const config: Config = { path: ["/blog/*"] };
+// Disabled: static HTML blog posts now exist in /blog/*.html
+// Served via netlify.toml redirects. This edge function is kept as a reference only.
+export const config: Config = { path: [] };
